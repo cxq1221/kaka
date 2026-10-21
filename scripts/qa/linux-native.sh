@@ -8,7 +8,7 @@ if [[ "$(uname -s)" != Linux ]]; then
 fi
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-executable="$(realpath "${1:-$repository_root/src-tauri/target/release/kiri}")"
+executable="$(realpath "${1:-$repository_root/src-tauri/target/release/kaka}")"
 output="${KIRI_LINUX_QA_DIR:-$repository_root/linux-native-review}"
 mkdir -p "$output"
 output="$(realpath "$output")"

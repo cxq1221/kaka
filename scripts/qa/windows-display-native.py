@@ -250,9 +250,9 @@ finally:
     for process in [fixture, app]:
         if process and process.poll() is None:
             subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], capture_output=True)
-    log = Path(os.environ['LOCALAPPDATA']) / 'io.yuxino.kiri/logs/kiri.log'
+    log = Path(os.environ['LOCALAPPDATA']) / 'io.cxq1221.kaka/logs/kaka.log'
     if log.exists():
-        (out / 'kiri.log').write_bytes(log.read_bytes())
+        (out / 'kaka.log').write_bytes(log.read_bytes())
     (out / 'report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
 if not report['success']:
     raise SystemExit(report['error'])

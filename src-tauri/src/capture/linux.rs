@@ -30,7 +30,7 @@ use image::ImageEncoder;
 /// Hard upper bound on how long a single portal round-trip may take.
 const PORTAL_TIMEOUT: Duration = Duration::from_secs(120);
 const MAX_SCREENSHOT_BYTES: u64 = 256 * 1024 * 1024;
-const PORTAL_ACCESS_GUIDANCE: &str = "Screenshot access was not granted. Request access from the Kiri Library, then try Capture again.";
+const PORTAL_ACCESS_GUIDANCE: &str = "Screenshot access was not granted. Request access from the Kaka Library, then try Capture again.";
 
 #[derive(Debug)]
 struct PortalAccessNotGranted(ashpd::Error);
@@ -76,7 +76,7 @@ pub fn capture_active_display() -> Result<CapturedDisplay> {
         .is_err()
     {
         bail!(
-            "A previous Linux screen capture is still in progress. Restart Kiri if capture remains unavailable."
+            "A previous Linux screen capture is still in progress. Restart Kaka if capture remains unavailable."
         );
     }
 
@@ -391,7 +391,7 @@ async fn request_portal_screenshot() -> Result<url::Url> {
         .map_err(portal_request_error)
 }
 
-/// Ask for the initial GNOME grant while the Kiri Library is focused.
+/// Ask for the initial GNOME grant while the Kaka Library is focused.
 /// GNOME only offers the persistent screenshot permission for a noninteractive
 /// request. Discard the resulting full-display image; this action grants access
 /// but does not start a capture session.

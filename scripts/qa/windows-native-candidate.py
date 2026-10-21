@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import zipfile
 
-REPOSITORY = "yuxino/Kiri"
+REPOSITORY = "cxq1221/kaka"
 WORKFLOW = ".github/workflows/build.yml"
 JOB = "Build and test Windows app (Server 2025)"
 BUILD_STEPS = (
@@ -187,7 +187,7 @@ def main():
     # Legacy failed builds retained the compiled executable here. Future
     # candidates retain the same file together with their installed checksum.
     binary_name = "windows-native-candidate" if any(item["name"] == "windows-native-candidate" for item in artifacts) else "countdown-debug-build"
-    requested_artifacts = [("kiri-windows", "installer"), (binary_name, "compiled")]
+    requested_artifacts = [("kaka-windows", "installer"), (binary_name, "compiled")]
     if "windows-library-files-native.py" in gates:
         # Replay the exact native-media fixture retained by the original Rust
         # gate; do not weaken file-copy acceptance with a fabricated MP4.
@@ -202,20 +202,20 @@ def main():
         records[folder] = {"id": artifact["id"], "name": name, "archive_digest": artifact["digest"]}
         archive.unlink()
     installers = list((candidate / "installer").rglob("*-setup.exe"))
-    binaries = list((candidate / "compiled").rglob("kiri.exe"))
+    binaries = list((candidate / "compiled").rglob("kaka.exe"))
     require(len(installers) == 1 and len(binaries) == 1, "Expected one original installer and compiled executable")
     # Bind installation to the original NSIS payload, retaining the distinct
     # compiled/portable identity instead of treating different bytes as equal.
     seven_zip = shutil.which("7z") or str(Path(os.environ["ProgramFiles"]) / "7-Zip/7z.exe")
     payload_root = candidate / "payload"
     subprocess.run([seven_zip, "x", "-y", "-bso0", "-bsp0", "-o" + str(payload_root), str(installers[0])], check=True)
-    payloads = list(payload_root.rglob("kiri.exe"))
+    payloads = list(payload_root.rglob("kaka.exe"))
     require(len(payloads) == 1 and not payloads[0].is_symlink(), "Expected one executable in the original NSIS payload")
     install = Path(os.environ["RUNNER_TEMP"]) / "kiri-installed-review"
     require(not install.exists(), "Candidate install destination must be fresh")
     subprocess.run(["pwsh", "-NoProfile", "-File", "scripts/qa/windows-install-candidate.ps1",
                     "-Installer", str(installers[0]), "-InstallRoot", str(install)], check=True, timeout=120)
-    installed = install / "kiri.exe"
+    installed = install / "kaka.exe"
     checksum = digest(binaries[0])
     actual_checksum = digest(installed) if installed.is_file() else None
     (evidence / "installer-check.json").write_text(json.dumps({
@@ -225,12 +225,12 @@ def main():
         "installed_files": [str(path.relative_to(install)) for path in install.rglob("*")] if install.exists() else [],
     }, indent=2), encoding="utf-8")
     identities = executable_identities(binaries[0], payloads[0], installed)
-    app = Path("src-tauri/target/release/kiri.exe")
+    app = Path("src-tauri/target/release/kaka.exe")
     app.parent.mkdir(parents=True, exist_ok=True)
     require(not app.exists(), "Recheck must not overwrite a local build")
     shutil.copy2(binaries[0], app)
-    portable = Path(os.environ["RUNNER_TEMP"]) / "kiri-portable-verify/kiri.exe"
-    archives = list((candidate / "installer").rglob("Kiri-*-Windows-x64-Portable.zip"))
+    portable = Path(os.environ["RUNNER_TEMP"]) / "kiri-portable-verify/kaka.exe"
+    archives = list((candidate / "installer").rglob("Kaka-*-Windows-x64-Portable.zip"))
     require(len(archives) <= 1, "Candidate contains multiple portable packages")
     if archives:
         extract_verified(archives[0], portable.parent, "sha256:" + digest(archives[0]))

@@ -32,11 +32,11 @@ const assets: unknown[] = workspace || params.has("sizes") || params.has("scroll
   pixelWidth: 3840, pixelHeight: 2160, duration: null, sourceApplication: null,
   trashedAt: null, gifEligible: false, ...examples[index % examples.length],
   isFavorite: index % 3 === 0,
-  ...(workspace ? {kind:"image",title:["Capture toolbar", "Keyboard shortcuts", "Local workflow", "Window selection"][index % 4],tags:["Kiri"],pixelWidth:1440,pixelHeight:900} : {}),
+  ...(workspace ? {kind:"image",title:["窗口截图", "快捷键一览", "本地工作流", "区域选择"][index % 4],tags:["Kaka"],pixelWidth:1440,pixelHeight:900} : {}),
 })) : [];
 const recordBase = { kind:"image", filename:"fixture.png", pixelWidth:640, pixelHeight:360, duration:null, sourceApplication:null, isFavorite:false, trashedAt:null, gifEligible:false, tags:[], fileSize:12000, ocrOriginalText:null };
 const textRecords: {id:string;createdAt:number;ocrText:string;ocrOriginalText:string|null;[key:string]:unknown}[] = workspace ? [
-  { ...recordBase, id:"text-1", createdAt:Date.parse("2026-10-12T09:30:00Z"), ocrText:"Kiri\nCapture, annotate, and keep everything local.\n\nSelect a window or drag a region. Add notes, copy the image, or pin it on your screen.\n\nScreenshot · Recording · Text recognition", qrText:null },
+  { ...recordBase, id:"text-1", createdAt:Date.parse("2026-10-12T09:30:00Z"), ocrText:"Kaka\nCapture, annotate, and keep everything local.\n\nSelect a window or drag a region. Add notes, copy the image, or pin it on your screen.\n\nScreenshot · Recording · Text recognition", qrText:null },
   { ...recordBase, id:"text-2", createdAt:Date.parse("2026-10-11T09:30:00Z"), ocrText:"Keyboard shortcuts\nShift + Command + A: Capture\nReturn: Confirm\nEscape: Cancel", qrText:null },
   { ...recordBase, id:"text-3", createdAt:Date.parse("2026-10-10T09:30:00Z"), ocrText:"截图与录屏保存在本机。\n文字可编辑、复制，随时回来查看。", qrText:null },
 ] : [];
@@ -46,8 +46,8 @@ const qrRecords = workspace ? [
 ] : [];
 const svgPreview = (id:string) => {
   const index = Number(id.split("-").pop()) || 0;
-  const titles = ["Capture toolbar", "Keyboard shortcuts", "Local workflow", "Window selection"];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="640" height="360" fill="#fff"/><rect width="640" height="38" fill="#eee"/><circle cx="20" cy="19" r="5" fill="#aaa"/><circle cx="38" cy="19" r="5" fill="#bbb"/><circle cx="56" cy="19" r="5" fill="#ccc"/><text x="40" y="99" font-family="sans-serif" font-size="28" fill="#111">${titles[index % 4]}</text><text x="40" y="130" font-family="sans-serif" font-size="14" fill="#777">Kiri · Public layout fixture</text><rect x="40" y="166" width="560" height="130" rx="6" fill="#f4f4f2"/><rect x="62" y="190" width="290" height="10" fill="#ccc"/><rect x="62" y="215" width="450" height="8" fill="#ddd"/><rect x="62" y="239" width="390" height="8" fill="#ddd"/></svg>`;
+  const titles = ["窗口截图", "快捷键一览", "本地工作流", "区域选择"];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="640" height="360" fill="#fff"/><rect width="640" height="38" fill="#eee"/><circle cx="20" cy="19" r="5" fill="#aaa"/><circle cx="38" cy="19" r="5" fill="#bbb"/><circle cx="56" cy="19" r="5" fill="#ccc"/><text x="40" y="99" font-family="sans-serif" font-size="28" fill="#111">${titles[index % 4]}</text><text x="40" y="130" font-family="sans-serif" font-size="14" fill="#777">Kaka · Public layout fixture</text><rect x="40" y="166" width="560" height="130" rx="6" fill="#f4f4f2"/><rect x="62" y="190" width="290" height="10" fill="#ccc"/><rect x="62" y="215" width="450" height="8" fill="#ddd"/><rect x="62" y="239" width="390" height="8" fill="#ddd"/></svg>`;
   // Keep resource cache queries outside the SVG payload in this isolated fixture.
   return `data:image/svg+xml,${encodeURIComponent(svg)}#fixture`;
 };

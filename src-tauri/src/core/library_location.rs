@@ -17,7 +17,8 @@ const MARKER_SCHEMA_VERSION: u32 = 2;
 const LEGACY_SCHEMA_VERSION: u32 = 1;
 const LOCATION_CONFIG_FILENAME: &str = "library-location.json";
 const LIBRARY_MARKER_FILENAME: &str = ".kiri-library.json";
-pub const MANAGED_LIBRARY_DIRECTORY_NAME: &str = "Kiri Library";
+pub const MANAGED_LIBRARY_DIRECTORY_NAME: &str = "Kaka Library";
+const LEGACY_MANAGED_LIBRARY_DIRECTORY_NAME: &str = "Kiri Library";
 
 #[derive(Debug, Error)]
 pub enum LibraryLocationError {
@@ -25,9 +26,9 @@ pub enum LibraryLocationError {
     Unavailable,
     #[error("library storage is being moved")]
     Migrating,
-    #[error("the selected folder is not a Kiri library")]
+    #[error("the selected folder is not a Kaka library")]
     InvalidLibrary,
-    #[error("the selected destination cannot contain the Kiri library")]
+    #[error("the selected destination cannot contain the Kaka library")]
     InvalidDestination,
     #[error("the selected library has a different identity")]
     LibraryIdentityMismatch,
@@ -406,7 +407,7 @@ fn rollback_replaced_paths(root: &Path, backup: &Path) -> Result<()> {
         sync_directory(parent)?;
     }
     if let Err(error) = std::fs::remove_dir_all(&rollback_copy) {
-        log::warn!("could not remove rolled-back Kiri library copy: {error}");
+        log::warn!("could not remove rolled-back Kaka library copy: {error}");
     }
     Ok(())
 }
@@ -419,7 +420,10 @@ pub fn target_root_for_container(container: &Path) -> Result<PathBuf> {
     let canonical = std::fs::canonicalize(container)?;
     if canonical
         .file_name()
-        .is_some_and(|name| name == MANAGED_LIBRARY_DIRECTORY_NAME)
+        .is_some_and(|name| {
+            name == MANAGED_LIBRARY_DIRECTORY_NAME
+                || name == LEGACY_MANAGED_LIBRARY_DIRECTORY_NAME
+        })
     {
         Ok(canonical)
     } else {
@@ -435,10 +439,13 @@ pub fn prepare_existing_location(
 ) -> Result<PreparedLibraryLocation> {
     let selected = std::fs::canonicalize(selected)?;
     let nested = selected.join(MANAGED_LIBRARY_DIRECTORY_NAME);
+    let legacy_nested = selected.join(LEGACY_MANAGED_LIBRARY_DIRECTORY_NAME);
     let root = if selected.join(LIBRARY_MARKER_FILENAME).exists() {
         selected
     } else if nested.join(LIBRARY_MARKER_FILENAME).exists() {
         nested
+    } else if legacy_nested.join(LIBRARY_MARKER_FILENAME).exists() {
+        legacy_nested
     } else {
         return Err(LibraryLocationError::InvalidLibrary);
     };

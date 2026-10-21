@@ -43,17 +43,17 @@ jobs:
           $result = Start-Process $installers[0].FullName -ArgumentList @('/S', "/D=$install") -PassThru -Wait
           if ($result.ExitCode -ne 0) { throw "NSIS installation failed: $($result.ExitCode)" }
           New-Item -ItemType Directory -Force src-tauri/target/release | Out-Null
-          Copy-Item (Join-Path $install 'kiri.exe') src-tauri/target/release/kiri.exe
+          Copy-Item (Join-Path $install 'kaka.exe') src-tauri/target/release/kaka.exe
           ./scripts/package-windows-portable.ps1
           python -m pip install pywinauto==0.6.9 Pillow==11.3.0
-          $env:KIRI_QA_PORTABLE_EXE = Join-Path $env:RUNNER_TEMP 'kiri-portable-verify/kiri.exe'
-          $env:KIRI_QA_INSTALLED_EXE = Join-Path $install 'kiri.exe'
+          $env:KIRI_QA_PORTABLE_EXE = Join-Path $env:RUNNER_TEMP 'kiri-portable-verify/kaka.exe'
+          $env:KIRI_QA_INSTALLED_EXE = Join-Path $install 'kaka.exe'
           python scripts/qa/windows-release-native.py
           if ($LASTEXITCODE -ne 0) { throw 'Windows native package verification failed' }
           $manifestPath = 'windows-candidate/windows-provenance.json'
           $manifest = Get-Content $manifestPath | ConvertFrom-Json
-          $archive = "Kiri-$($env:KIRI_RELEASE_TAG.Substring(1))-Windows-x64-Portable.zip"
-          $manifest | Add-Member -NotePropertyName executable_sha256 -NotePropertyValue (Get-FileHash (Join-Path $install 'kiri.exe') -Algorithm SHA256).Hash.ToLower()
+          $archive = "Kaka-$($env:KIRI_RELEASE_TAG.Substring(1))-Windows-x64-Portable.zip"
+          $manifest | Add-Member -NotePropertyName executable_sha256 -NotePropertyValue (Get-FileHash (Join-Path $install 'kaka.exe') -Algorithm SHA256).Hash.ToLower()
           $manifest | Add-Member -NotePropertyName portable_sha256 -NotePropertyValue (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower()
           $manifest | Add-Member -NotePropertyName native_checks_passed -NotePropertyValue $true
           $manifest | ConvertTo-Json -Depth 8 | Set-Content $manifestPath -Encoding utf8
@@ -68,5 +68,5 @@ jobs:
           name: verified-windows-release-packages
           path: |
             windows-candidate/*
-            Kiri-*-Windows-x64-Portable.zip
+            Kaka-*-Windows-x64-Portable.zip
           if-no-files-found: error

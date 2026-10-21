@@ -1,28 +1,28 @@
 # Privacy
 
-Kiri is local-first. Screenshots, recordings, annotations, OCR results, and the
+Kaka is local-first. Screenshots, recordings, annotations, OCR results, and the
 capture library stay on the device unless the user exports them or explicitly
-sends a selected OCR region to a configured remote provider. Kiri has no
+sends a selected OCR region to a configured remote provider. Kaka has no
 account system, analytics, advertising, or telemetry.
 
 ## Library storage
 
-Kiri keeps one managed library in the operating-system application-data
+Kaka keeps one managed library in the operating-system application-data
 location by default. Settings can copy it to another local directory or
 external disk and switch to that copy; the previous copy is retained. The
 selected location contains the library index, captures, and editable screenshot
 and video projects.
 
-If a completed recording cannot be imported into the active library, Kiri
+If a completed recording cannot be imported into the active library, Kaka
 keeps it in a local recovery area until a later import succeeds.
 
 ## Editable screenshot projects
 
-For annotations created by current Kiri builds, the local library keeps the
+For annotations created by current Kaka builds, the local library keeps the
 shareable flattened screenshot together with a clean source image and a small
 annotation document. The clean source can still contain pixels hidden by
 mosaic, text backgrounds, or shapes in the flattened result. These project
-files stay in Kiri's active library, are never uploaded by the editing feature,
+files stay in Kaka's active library, are never uploaded by the editing feature,
 and remain recoverable when the screenshot is moved to Trash.
 They are removed when that screenshot is permanently deleted. Older flattened
 screenshots do not contain reconstructable annotation data; starting a new edit
@@ -40,10 +40,10 @@ permanently deleted. Exported MP4 copies are separate flattened videos.
 
 ## Local media processing
 
-Kiri records, merges paused segments, generates video thumbnails, and converts
+Kaka records, merges paused segments, generates video thumbnails, and converts
 MP4 files to GIF with operating-system media frameworks. macOS uses
 AVFoundation and ImageIO; Windows uses Media Foundation and Windows imaging
-components; Linux uses system-installed GStreamer plugins. Kiri does not
+components; Linux uses system-installed GStreamer plugins. Kaka does not
 download or execute FFmpeg or another third-party media binary. Screenshots,
 recordings, filenames, library metadata, credentials, and media bytes remain on
 the device during these operations.
@@ -52,23 +52,44 @@ Linux video playback uses a temporary HTTP endpoint bound only to
 `127.0.0.1`, with a random port and a random token renewed on each application
 start. This lets WebKitGTK play local library videos without an external server.
 It serves only those video bytes to the local player, exposes no general file or
-application API, and stops when Kiri exits. It does not send media or metadata to
+application API, and stops when Kaka exits. It does not send media or metadata to
 another device or website.
 
-## Update checks when opening Kiri
+## Optional LanChat sharing
+
+Selecting **Send to LanChat** on an image is the only action that sends a capture
+to LanChat. Saving a screenshot never shares it automatically. Kaka discovers a
+room on `127.0.0.1` ports `81` and `8787`, or uses an optional address entered in
+Settings. Custom addresses are limited to `http://` loopback or private-network
+hosts.
+
+Kaka sends only the selected flattened image file to LanChat's `/api/files`
+endpoint. It does not send the editable clean source, annotation document,
+library index, OCR history, or other captures. LanChat stores that image on the
+room host and creates a message in its history so connected devices can open it.
+The connection is plain HTTP without transport encryption, so users should send
+only to a local or trusted private-network room.
+
+LanChat identifies the sender with a random `lan_identity` cookie. Kaka stores
+that pseudonymous identity in its application configuration directory and
+reuses it only when the room UUID matches. It is not a Kaka account and does not
+contain the user's name or credentials. LanChat's own retention, file storage,
+download, and gallery-saving behavior are governed by that product.
+
+## Update checks when opening Kaka
 
 On macOS and installed Windows builds, opening the main panel checks for
 updates. Successful checks are cached for six hours in the running app; failed
 checks may retry on another panel activation after five minutes. There is no
 periodic background timer. Settings also offers **Check for Updates**.
-Kiri requests the fixed public
-`github.com/yuxino/kiri/releases/latest/download/latest.json` manifest over
-HTTPS. If a newer release exists, Kiri displays its version and release notes.
+Kaka requests the fixed public
+`github.com/cxq1221/kaka/releases/latest/download/latest.json` manifest over
+HTTPS. If a newer release exists, Kaka displays its version and release notes.
 It does not download anything until the user clicks **Download Update**, and it
 does not install anything until the user clicks **Install Update**. The official
-Tauri updater verifies the downloaded archive against Kiri's embedded public
+Tauri updater verifies the downloaded archive against Kaka's embedded public
 key before the interface enables installation. macOS restarts only after a
-further explicit click; on Windows, the installer closes Kiri and completes the
+further explicit click; on Windows, the installer closes Kaka and completes the
 update. A fixed Releases-page link is shown only as recovery after a failure.
 
 Update requests contain the installed platform and version but no captures,
@@ -90,31 +111,31 @@ both. Recognizing a saved screenshot uses its saved flattened pixels, not its
 unannotated editing source or unsaved edits. Its text record owns a separate
 snapshot, so deleting the original screenshot does not delete this history.
 History is not sent to remote providers. Local recognition of saved screenshots
-continues if the result dialog is closed. If history cannot be saved, Kiri keeps
+continues if the result dialog is closed. If history cannot be saved, Kaka keeps
 the result visible for copying and reports the save failure.
 
 ## Optional remote OCR
 
 Users may save multiple Alibaba Cloud, OpenAI, or image-capable OpenAI Chat
 Completions-compatible OCR profiles. Merely creating or selecting a profile
-does not send data. Before every remote request, Kiri shows the profile,
+does not send data. Before every remote request, Kaka shows the profile,
 destination origin, model, and selected image dimensions and size. Only
 activating a visible Send or Retry action sends that selected PNG together with
 a short text-recognition instruction and the configured model name.
 
 Return uses local OCR for that image. A failed remote request is never retried,
-routed to another provider, or uploaded through a fallback automatically. Kiri
+routed to another provider, or uploaded through a fallback automatically. Kaka
 does not send the full capture, the capture library, other screen regions, or
 previous OCR results as part of the request.
 
 The chosen provider processes the request under its own terms and retention
-policy. Custom profiles send data to the origin shown in Kiri's confirmation
+policy. Custom profiles send data to the origin shown in Kaka's confirmation
 card; users should only configure endpoints they trust.
 
 ## Credentials and configuration
 
-API keys are entered inside Kiri and stored in macOS Keychain, Windows
-Credential Manager, or the Linux Secret Service. Kiri's profile JSON stores only non-secret metadata such
+API keys are entered inside Kaka and stored in macOS Keychain, Windows
+Credential Manager, or the Linux Secret Service. Kaka's profile JSON stores only non-secret metadata such
 as a profile name, base URL, and model. API keys are not returned to the UI,
 written to logs or plaintext configuration, or loaded from environment
 variables.

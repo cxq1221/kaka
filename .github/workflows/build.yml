@@ -282,22 +282,22 @@ jobs:
           dpkg-deb --contents "${packages[0]}" > linux-native-review/package-contents.txt
           sha256sum "${packages[0]}" > linux-native-review/package-sha256.txt
           sudo apt-get install -y --no-install-recommends "$(realpath "${packages[0]}")"
-          test -x /usr/bin/kiri
-          test -f /usr/share/applications/io.yuxino.kiri.desktop
-          grep -qx "Exec=kiri" /usr/share/applications/io.yuxino.kiri.desktop
-          grep -qx "NoDisplay=true" /usr/share/applications/io.yuxino.kiri.desktop
-          ldd /usr/bin/kiri > linux-native-review/linked-libraries.txt
+          test -x /usr/bin/kaka
+          test -f /usr/share/applications/io.cxq1221.kaka.desktop
+          grep -qx "Exec=kaka" /usr/share/applications/io.cxq1221.kaka.desktop
+          grep -qx "NoDisplay=true" /usr/share/applications/io.cxq1221.kaka.desktop
+          ldd /usr/bin/kaka > linux-native-review/linked-libraries.txt
           if grep -q 'not found' linux-native-review/linked-libraries.txt; then exit 1; fi
       - name: Exercise the installed app on an isolated X11 desktop
         if: needs.plan.outputs.linux_x11 == 'true'
         timeout-minutes: 5
-        run: bash scripts/qa/linux-native.sh /usr/bin/kiri
+        run: bash scripts/qa/linux-native.sh /usr/bin/kaka
       - name: Verify installed X11 system audio and pause/resume with a private FIFO sink
         if: needs.plan.outputs.linux_x11 == 'true'
         timeout-minutes: 4
         run: |
           KIRI_LINUX_QA_DIR="$PWD/linux-native-review/fifo" \
-            bash scripts/qa/linux-audio-fifo.sh /usr/bin/kiri
+            bash scripts/qa/linux-audio-fifo.sh /usr/bin/kaka
       - uses: actions/upload-artifact@v7
         if: ${{ always() && needs.plan.outputs.package_linux == 'true' }}
         with:
@@ -309,7 +309,7 @@ jobs:
         id: upload-linux-deb
         if: ${{ always() && needs.plan.outputs.package_linux == 'true' && hashFiles('src-tauri/target/release/bundle/deb/*.deb') != '' }}
         with:
-          name: kiri-linux-deb
+          name: kaka-linux-deb
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/deb/provenance.json
@@ -333,8 +333,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
-          name: kiri-linux-deb
-          path: ${{ runner.temp }}/kiri-linux-deb
+          name: kaka-linux-deb
+          path: ${{ runner.temp }}/kaka-linux-deb
           github-token: ${{ github.token }}
           run-id: ${{ inputs.linux_candidate_run_id || github.run_id }}
           digest-mismatch: error
@@ -342,7 +342,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           KIRI_CANDIDATE_RUN_ID: ${{ inputs.linux_candidate_run_id || github.run_id }}
-          KIRI_LINUX_DEB_DIR: ${{ runner.temp }}/kiri-linux-deb
+          KIRI_LINUX_DEB_DIR: ${{ runner.temp }}/kaka-linux-deb
           KIRI_LINUX_WAYLAND_QA_DIR: ${{ runner.temp }}/kiri-linux-wayland-review
         run: |
           python3 scripts/qa/linux-package-provenance.py verify \
@@ -351,7 +351,7 @@ jobs:
             --run-id "$KIRI_CANDIDATE_RUN_ID"
       - name: Install the candidate and GNOME desktop-test dependencies
         env:
-          KIRI_LINUX_DEB_DIR: ${{ runner.temp }}/kiri-linux-deb
+          KIRI_LINUX_DEB_DIR: ${{ runner.temp }}/kaka-linux-deb
           KIRI_LINUX_WAYLAND_QA_DIR: ${{ runner.temp }}/kiri-linux-wayland-review
         run: |
           packages=("$KIRI_LINUX_DEB_DIR"/*.deb)
@@ -369,13 +369,13 @@ jobs:
             libgl1-mesa-dri libegl-mesa0 dbus-x11 at-spi2-core python3-pyatspi \
             python3-gi python3-gi-cairo python3-pil gir1.2-gtk-3.0 gir1.2-gstreamer-1.0 \
             gir1.2-gst-plugins-base-1.0 gstreamer1.0-pipewire
-          test -x /usr/bin/kiri
+          test -x /usr/bin/kaka
       - name: Exercise capture and recording on an isolated GNOME Wayland desktop
         timeout-minutes: 12
         env:
           KIRI_LINUX_WAYLAND_QA_DIR: ${{ runner.temp }}/kiri-linux-wayland-review
           KIRI_QA_DISPLAY_SCALE: ${{ matrix.scale }}
-        run: bash scripts/qa/linux-wayland.sh /usr/bin/kiri
+        run: bash scripts/qa/linux-wayland.sh /usr/bin/kaka
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -397,8 +397,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
-          name: kiri-linux-deb
-          path: ${{ runner.temp }}/kiri-linux-deb
+          name: kaka-linux-deb
+          path: ${{ runner.temp }}/kaka-linux-deb
           github-token: ${{ github.token }}
           run-id: ${{ inputs.linux_candidate_run_id }}
           digest-mismatch: error
@@ -406,7 +406,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           KIRI_CANDIDATE_RUN_ID: ${{ inputs.linux_candidate_run_id }}
-          KIRI_LINUX_DEB_DIR: ${{ runner.temp }}/kiri-linux-deb
+          KIRI_LINUX_DEB_DIR: ${{ runner.temp }}/kaka-linux-deb
           KIRI_LINUX_QA_DIR: ${{ github.workspace }}/linux-native-review
         run: |
           # Select the recorded attempt, including artifacts from an older
@@ -432,7 +432,7 @@ jobs:
             --output "$KIRI_LINUX_QA_DIR/package-provenance.json" "${recheck_flags[@]}"
       - name: Install unchanged candidate and X11 desktop-test dependencies
         run: |
-          packages=("${{ runner.temp }}/kiri-linux-deb/"*.deb)
+          packages=("${{ runner.temp }}/kaka-linux-deb/"*.deb)
           test "${#packages[@]}" -eq 1
           sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' -e 's|://azure\.archive\.ubuntu\.com/ubuntu|://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
           sudo apt-get update
@@ -444,17 +444,17 @@ jobs:
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav \
             tesseract-ocr-eng tesseract-ocr-chi-sim tesseract-ocr-jpn
-          test -x /usr/bin/kiri
-          ldd /usr/bin/kiri > linux-native-review/linked-libraries.txt
+          test -x /usr/bin/kaka
+          ldd /usr/bin/kaka > linux-native-review/linked-libraries.txt
           if grep -q 'not found' linux-native-review/linked-libraries.txt; then exit 1; fi
       - name: Replay all original installed X11 assertions
         timeout-minutes: 4
-        run: bash scripts/qa/linux-native.sh /usr/bin/kiri
+        run: bash scripts/qa/linux-native.sh /usr/bin/kaka
       - name: Replay installed X11 system audio and pause/resume with a private FIFO sink
         timeout-minutes: 4
         run: |
           KIRI_LINUX_QA_DIR="$PWD/linux-native-review/fifo" \
-            bash scripts/qa/linux-audio-fifo.sh /usr/bin/kiri
+            bash scripts/qa/linux-audio-fifo.sh /usr/bin/kaka
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -560,8 +560,8 @@ jobs:
           $install = Join-Path $env:RUNNER_TEMP 'kiri-installed-review'
           $installerProcess = Start-Process $installers[0].FullName -ArgumentList @('/S', "/D=$install") -PassThru -Wait
           if ($installerProcess.ExitCode -ne 0) { throw "NSIS installation failed: $($installerProcess.ExitCode)" }
-          if (-not (Test-Path (Join-Path $install 'kiri.exe'))) { throw "Installed executable is missing" }
-          "KIRI_QA_INSTALLED_EXE=$(Join-Path $install 'kiri.exe')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if (-not (Test-Path (Join-Path $install 'kaka.exe'))) { throw "Installed executable is missing" }
+          "KIRI_QA_INSTALLED_EXE=$(Join-Path $install 'kaka.exe')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Package and verify portable Windows build
         if: needs.plan.outputs.package_windows == 'true'
         shell: pwsh
@@ -591,14 +591,14 @@ jobs:
         timeout-minutes: 8
         run: |
           $install = Join-Path $env:RUNNER_TEMP 'kiri-installed-review'
-          $env:KIRI_QA_PORTABLE_EXE = Join-Path $env:RUNNER_TEMP 'kiri-portable-verify/kiri.exe'
-          $env:KIRI_QA_INSTALLED_EXE = Join-Path $install 'kiri.exe'
+          $env:KIRI_QA_PORTABLE_EXE = Join-Path $env:RUNNER_TEMP 'kiri-portable-verify/kaka.exe'
+          $env:KIRI_QA_INSTALLED_EXE = Join-Path $install 'kaka.exe'
           python scripts/qa/windows-release-native.py
       - name: Verify library file actions on the installed Windows app
         if: ${{ !cancelled() && needs.plan.outputs.package_windows == 'true' && hashFiles('src-tauri/target/release/bundle/nsis/*-setup.exe') != '' }}
         timeout-minutes: 10
         env:
-          KIRI_LIBRARY_FILES_QA_EXE: ${{ runner.temp }}/kiri-installed-review/kiri.exe
+          KIRI_LIBRARY_FILES_QA_EXE: ${{ runner.temp }}/kiri-installed-review/kaka.exe
           KIRI_LIBRARY_FILES_QA_VIDEO_DIR: ${{ runner.temp }}/kiri-video-export-review
         run: python scripts/qa/windows-library-files-native.py
       - uses: actions/upload-artifact@v7
@@ -612,7 +612,7 @@ jobs:
         if: needs.plan.outputs.package_windows == 'true'
         timeout-minutes: 4
         env:
-          KIRI_COLOR_QA_EXE: ${{ runner.temp }}/kiri-installed-review/kiri.exe
+          KIRI_COLOR_QA_EXE: ${{ runner.temp }}/kiri-installed-review/kaka.exe
         run: python scripts/qa/windows-capture-color-native.py
       - uses: actions/upload-artifact@v7
         if: ${{ always() && needs.plan.outputs.package_windows == 'true' }}
@@ -625,7 +625,7 @@ jobs:
         if: ${{ always() && needs.plan.outputs.package_windows == 'true' }}
         with:
           name: windows-capture-color-candidate
-          path: ${{ runner.temp }}/kiri-installed-review/kiri.exe
+          path: ${{ runner.temp }}/kiri-installed-review/kaka.exe
           retention-days: 5
           if-no-files-found: warn
       - uses: actions/upload-artifact@v7
@@ -661,26 +661,26 @@ jobs:
         with:
           name: countdown-debug-build
           path: |
-            src-tauri/target/release/kiri.exe
+            src-tauri/target/release/kaka.exe
             src-tauri/target/release/*.pdb
           retention-days: 2
           if-no-files-found: warn
       - uses: actions/upload-artifact@v7
-        if: ${{ always() && needs.plan.outputs.package_windows == 'true' && hashFiles('src-tauri/target/release/kiri.exe') != '' }}
+        if: ${{ always() && needs.plan.outputs.package_windows == 'true' && hashFiles('src-tauri/target/release/kaka.exe') != '' }}
         with:
           name: windows-native-candidate
-          path: src-tauri/target/release/kiri.exe
+          path: src-tauri/target/release/kaka.exe
           retention-days: 5
           if-no-files-found: error
       - name: Upload Windows bundle
         if: ${{ always() && needs.plan.outputs.package_windows == 'true' && hashFiles('src-tauri/target/release/bundle/nsis/*-setup.exe') != '' }}
         uses: actions/upload-artifact@v7
         with:
-          name: kiri-windows
+          name: kaka-windows
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/nsis/*.sig
-            Kiri-*-Windows-x64-Portable.zip
+            Kaka-*-Windows-x64-Portable.zip
           if-no-files-found: error
 
   windows-native-recheck:

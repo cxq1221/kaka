@@ -89,6 +89,14 @@ impl From<&Rect> for RectDto {
 #[serde(rename_all = "camelCase")]
 pub struct CaptureContextDto {
     pub capture_id: uuid::Uuid,
+    /// Opaque custom-protocol token for this capture's frozen image.
+    pub capture_token: String,
+    /// False while the display frame is being encoded on a worker.
+    pub image_ready: bool,
+    /// False while ScreenCaptureKit window geometry is still loading.
+    pub window_rects_ready: bool,
+    /// True when this context is rendered by the app-lifetime macOS overlay.
+    pub resident_overlay: bool,
     pub initial_mode: crate::state::CaptureMode,
     pub display_width: f64,
     pub display_height: f64,
@@ -508,7 +516,7 @@ pub fn open_asset(app: AppHandle, id: String) -> Result<(), String> {
     let win_w = (win_h * aspect).clamp(360.0, 1200.0);
     let asset_id = asset.id;
     let window_title = format!(
-        "{} — Kiri",
+        "{} — Kaka",
         asset.title.as_deref().unwrap_or(&asset.filename)
     );
     std::thread::Builder::new()
@@ -608,7 +616,7 @@ async fn open_pinned_screenshot(app: AppHandle, id: String) -> Result<(), String
         }
         let builder = WebviewWindowBuilder::new(&app, label,
             WebviewUrl::App(format!("index.html?window=pin&id={asset_id}").into()))
-            .title("Pinned Screenshot — Kiri")
+            .title("Pinned Screenshot — Kaka")
             .inner_size(width, height)
             .min_inner_size(80.0, 60.0)
             // GTK needs resizable windows for both native and programmatic
@@ -700,7 +708,7 @@ pub fn open_editor(app: AppHandle, id: String, recognize_qr: Option<bool>) -> Re
                 label,
                 WebviewUrl::App(format!("index.html?window=editor&id={asset_id}{qr_query}{read_only_query}").into()),
             )
-            .title("kiri")
+            .title("Kaka")
             .inner_size(880.0, 620.0)
             .min_inner_size(520.0, 420.0)
             .resizable(true)
@@ -1904,6 +1912,10 @@ fn capture_context(session: &CaptureSession) -> CaptureContextDto {
     let display = &session.display;
     CaptureContextDto {
         capture_id: session.capture_id,
+        capture_token: session.capture_token.clone(),
+        image_ready: !display.png_data.is_empty(),
+        window_rects_ready: session.window_rects_ready,
+        resident_overlay: session.resident_overlay,
         initial_mode: session.initial_mode,
         display_width: display.screen_frame.width,
         display_height: display.screen_frame.height,
@@ -2007,33 +2019,55 @@ pub(crate) fn start_capture_with_mode(
     let was_kiri_frontmost = pid == Some(std::process::id());
     let hidden_windows = hide_library_windows(&app)?;
 
-    // Windows acknowledges the hide and flushes DWM instead of guessing how
-    // long the native hide animation will take.
-    #[cfg(not(windows))]
-    std::thread::sleep(std::time::Duration::from_millis(120));
+    #[cfg(target_os = "macos")]
+    {
+        let (display, frame) = match capture_backend::capture_active_display_frame() {
+            Ok(captured) => captured,
+            Err(error) => {
+                restore_capture_origin(&app, &hidden_windows, was_kiri_frontmost, pid);
+                let message = format!("Screen capture could not start: {error}");
+                log::error!("start_capture: display capture failed: {error}");
+                emit_error(&app, message.clone(), None);
+                return Err(message);
+            }
+        };
+        return finish_deferred_macos_capture(
+            &app,
+            display,
+            frame,
+            pid,
+            name,
+            was_kiri_frontmost,
+            hidden_windows,
+            initial_mode,
+        );
+    }
 
-    let display = match capture_backend::capture_active_display() {
-        Ok(display) => display,
-        Err(error) => {
-            restore_capture_origin(&app, &hidden_windows, was_kiri_frontmost, pid);
-            let message = format!("Screen capture could not start: {error}");
-            log::error!("start_capture: display capture failed: {error}");
-            emit_error(&app, message.clone(), None);
-            return Err(message);
-        }
-    };
-    log::info!(
-        "start_capture: display frozen logical={}x{} pixels={}x{} scale={}",
-        display.screen_frame.width,
-        display.screen_frame.height,
-        display.pixel_width,
-        display.pixel_height,
-        display.backing_scale
-    );
+    #[cfg(not(target_os = "macos"))]
+    {
+        let display = match capture_backend::capture_active_display() {
+            Ok(display) => display,
+            Err(error) => {
+                restore_capture_origin(&app, &hidden_windows, was_kiri_frontmost, pid);
+                let message = format!("Screen capture could not start: {error}");
+                log::error!("start_capture: display capture failed: {error}");
+                emit_error(&app, message.clone(), None);
+                return Err(message);
+            }
+        };
+        log::info!(
+            "start_capture: display frozen logical={}x{} pixels={}x{} scale={}",
+            display.screen_frame.width,
+            display.screen_frame.height,
+            display.pixel_width,
+            display.pixel_height,
+            display.backing_scale
+        );
 
-    finish_frozen_capture(
-        &app, display, pid, name, was_kiri_frontmost, hidden_windows, initial_mode,
-    )
+        finish_frozen_capture(
+            &app, display, pid, name, was_kiri_frontmost, hidden_windows, initial_mode,
+        )
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -2075,7 +2109,6 @@ pub(crate) fn start_linux_capture_from_shortcut(
         let app = app.clone();
         move || linux_capture_preflight(&app)
     })?;
-    std::thread::sleep(std::time::Duration::from_millis(120));
     let display = match capture_backend::capture_active_display() {
         Ok(display) => display,
         Err(error) => {
@@ -2252,8 +2285,16 @@ fn finish_frozen_capture(
     );
 
     let capture_id = uuid::Uuid::new_v4();
+    let capture_token = {
+        let store = app.state::<crate::protocol::ProtocolStore>();
+        crate::protocol::set_frozen_png(&store, capture_id, display.png_data.clone())
+    };
     let context = CaptureContextDto {
         capture_id,
+        capture_token: capture_token.clone(),
+        image_ready: true,
+        window_rects_ready: true,
+        resident_overlay: false,
         initial_mode,
         display_width: display.screen_frame.width,
         display_height: display.screen_frame.height,
@@ -2266,11 +2307,6 @@ fn finish_frozen_capture(
 
     let overlay_frame = display.screen_frame;
     let overlay_scale = display.backing_scale;
-    log::info!("start_capture: publishing frozen image capture_id={capture_id}");
-    let capture_token = {
-        let store = app.state::<crate::protocol::ProtocolStore>();
-        crate::protocol::set_frozen_png(&store, capture_id, display.png_data.clone())
-    };
     log::info!("start_capture: frozen image published capture_id={capture_id}");
 
     let overlay_label = "overlay".to_string();
@@ -2280,6 +2316,9 @@ fn finish_frozen_capture(
         let mut capture = state.capture.lock().unwrap();
         capture.session = Some(CaptureSession {
             capture_id,
+            capture_token: capture_token.clone(),
+            window_rects_ready: true,
+            resident_overlay: false,
             initial_mode,
             display,
             source_application: name,
@@ -2325,8 +2364,223 @@ fn finish_frozen_capture(
     Ok(context)
 }
 
+#[cfg(target_os = "macos")]
+#[allow(clippy::too_many_arguments)]
+fn finish_deferred_macos_capture(
+    app: &AppHandle,
+    display: crate::capture::CapturedDisplay,
+    frame: capture_backend::DeferredCaptureFrame,
+    pid: Option<u32>,
+    name: Option<String>,
+    was_kiri_frontmost: bool,
+    hidden_windows: Vec<String>,
+    initial_mode: crate::state::CaptureMode,
+) -> Result<CaptureContextDto, String> {
+    let capture_id = uuid::Uuid::new_v4();
+    let capture_token = {
+        let store = app.state::<crate::protocol::ProtocolStore>();
+        crate::protocol::reserve_frozen_capture(&store, capture_id)
+    };
+    let overlay_frame = display.screen_frame;
+    let overlay_scale = display.backing_scale;
+    let display_id = display.display_id;
+    let context = CaptureContextDto {
+        capture_id,
+        capture_token: capture_token.clone(),
+        image_ready: false,
+        window_rects_ready: false,
+        resident_overlay: true,
+        initial_mode,
+        display_width: overlay_frame.width,
+        display_height: overlay_frame.height,
+        scale: overlay_scale,
+        pixel_width: display.pixel_width,
+        pixel_height: display.pixel_height,
+        window_rects: Vec::new(),
+        source_application: name.clone(),
+    };
+
+    {
+        let state = app.state::<AppState>();
+        let mut capture = state.capture.lock().unwrap();
+        capture.session = Some(CaptureSession {
+            capture_id,
+            capture_token,
+            window_rects_ready: false,
+            resident_overlay: true,
+            initial_mode,
+            display,
+            source_application: name,
+            return_pid: pid,
+            was_kiri_frontmost,
+            hidden_windows,
+            overlay_labels: vec!["overlay".into()],
+            annotation: None,
+        });
+    }
+
+    if let Err(error) = show_resident_overlay(app, overlay_frame, was_kiri_frontmost) {
+        let failed_session = {
+            let state = app.state::<AppState>();
+            let mut capture = state.capture.lock().unwrap();
+            if capture
+                .session
+                .as_ref()
+                .is_some_and(|session| session.capture_id == capture_id)
+            {
+                capture.session.take()
+            } else {
+                None
+            }
+        };
+        if let Some(session) = failed_session {
+            teardown_cancelled_capture(app, session, false);
+        }
+        return Err(format!("The capture overlay could not be shown: {error}"));
+    }
+    let _ = app.emit_to("overlay", "capture-started", &context);
+
+    let encode_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        match capture_backend::encode_capture_frame_png(frame) {
+            Ok((png, width, height)) => {
+                let store = encode_app.state::<crate::protocol::ProtocolStore>();
+                if !crate::protocol::publish_frozen_png(&store, capture_id, png.clone()) {
+                    log::warn!(
+                        "capture: discarded image for stale capture_id={capture_id}"
+                    );
+                    return;
+                }
+                let updated = {
+                    let state = encode_app.state::<AppState>();
+                    let mut capture = state.capture.lock().unwrap();
+                    let Some(session) = capture
+                        .session
+                        .as_mut()
+                        .filter(|session| session.capture_id == capture_id)
+                    else {
+                        return;
+                    };
+                    session.display.png_data = png;
+                    session.display.pixel_width = width;
+                    session.display.pixel_height = height;
+                    true
+                };
+                if updated {
+                    let _ = encode_app.emit_to(
+                        "overlay",
+                        "capture-image-ready",
+                        serde_json::json!({ "captureId": capture_id }),
+                    );
+                }
+            }
+            Err(error) => {
+                let message = format!("Screen capture could not start: {error}");
+                log::error!("start_capture: PNG encoding failed: {error}");
+                let cleanup_app = encode_app.clone();
+                let _ = encode_app.run_on_main_thread(move || {
+                    let failed_session = {
+                        let state = cleanup_app.state::<AppState>();
+                        let mut capture = state.capture.lock().unwrap();
+                        if capture
+                            .session
+                            .as_ref()
+                            .is_some_and(|session| session.capture_id == capture_id)
+                        {
+                            capture.session.take()
+                        } else {
+                            None
+                        }
+                    };
+                    if let Some(session) = failed_session {
+                        teardown_cancelled_capture(&cleanup_app, session, true);
+                    }
+                    emit_error(&cleanup_app, message, None);
+                });
+            }
+        }
+    });
+
+    let rects_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let rects = match capture_backend::capture_window_rects_deferred(display_id) {
+            Ok(rects) => rects,
+            Err(error) => {
+                log::warn!("capture: deferred window enumeration failed: {error}");
+                Vec::new()
+            }
+        };
+        let payload = {
+            let state = rects_app.state::<AppState>();
+            let mut capture = state.capture.lock().unwrap();
+            let Some(session) = capture
+                .session
+                .as_mut()
+                .filter(|session| session.capture_id == capture_id)
+            else {
+                return;
+            };
+            session.display.window_rects = rects;
+            session.window_rects_ready = true;
+            serde_json::json!({
+                "captureId": capture_id,
+                "windowRects": session.display.window_rects.iter().map(RectDto::from).collect::<Vec<_>>(),
+            })
+        };
+        let _ = rects_app.emit_to("overlay", "capture-window-rects", payload);
+    });
+
+    Ok(context)
+}
+
+#[cfg(target_os = "macos")]
+fn show_resident_overlay(
+    app: &AppHandle,
+    frame: Rect,
+    restore_key_status: bool,
+) -> anyhow::Result<()> {
+    let window = app
+        .get_webview_window("overlay")
+        .ok_or_else(|| anyhow::anyhow!("the resident overlay is unavailable"))?;
+    platform::place_transient_window(
+        &window,
+        frame,
+        app.primary_monitor()
+            .ok()
+            .flatten()
+            .map(|monitor| monitor.scale_factor())
+            .unwrap_or(1.0),
+    )?;
+    window.show()?;
+    platform::configure_transient_window(&window, platform::TransientWindowRole::CaptureOverlay);
+    if restore_key_status {
+        // The completion card is normally key when the next shortcut arrives.
+        // Hiding it does not automatically make the resident overlay key.
+        window.set_focus()?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_capture_state(
+    window: WebviewWindow,
+    app: AppHandle,
+) -> Result<Option<CaptureContextDto>, String> {
+    if window.label() != "overlay" {
+        return Err("Capture state is only available to the overlay.".into());
+    }
+    let state = app.state::<AppState>();
+    let capture = state.capture.lock().unwrap();
+    Ok(capture
+        .session
+        .as_ref()
+        .filter(|session| session.overlay_labels.iter().any(|label| label == "overlay"))
+        .map(capture_context))
+}
+
 fn hide_library_windows(app: &AppHandle) -> Result<Vec<String>, String> {
     let mut hidden = Vec::new();
+    let mut hidden_window_ids = Vec::new();
     for (label, window) in app.webview_windows() {
         let is_toast = label == "toast";
         if label.starts_with("library") && window.is_visible().unwrap_or(false) {
@@ -2334,10 +2588,10 @@ fn hide_library_windows(app: &AppHandle) -> Result<Vec<String>, String> {
         } else if !is_toast {
             continue;
         }
-        #[cfg(windows)]
-        let result = platform::windows::hide_window_for_capture(&window);
-        #[cfg(not(windows))]
-        let result = window.hide().map_err(anyhow::Error::from);
+        if let Some(id) = platform::window_capture_id(app, &window.label()) {
+            hidden_window_ids.push(id);
+        }
+        let result = platform::hide_window_for_capture(&window);
         if let Err(error) = result {
             restore_capture_origin(app, &hidden, false, None);
             let message = format!("Screen capture could not start: {error}");
@@ -2349,6 +2603,13 @@ fn hide_library_windows(app: &AppHandle) -> Result<Vec<String>, String> {
             // Clear renderer state only after native hiding is synchronized.
             let _ = window.emit("toast-dismiss", ());
         }
+    }
+    if let Err(error) = platform::wait_for_windows_hidden(&hidden_window_ids) {
+        restore_capture_origin(app, &hidden, false, None);
+        let message = format!("Screen capture could not start: {error}");
+        log::error!("start_capture: waiting for hidden windows failed: {error:#}");
+        emit_error(app, message.clone(), None);
+        return Err(message);
     }
     Ok(hidden)
 }
@@ -2386,6 +2647,50 @@ pub(crate) fn restore_capture_origin(
     }
 }
 
+#[cfg(target_os = "macos")]
+pub(crate) fn prepare_resident_overlay(app: &AppHandle) -> Result<(), String> {
+    if app.get_webview_window("overlay").is_some() {
+        return Ok(());
+    }
+    let size = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map(|monitor| {
+            let scale = monitor.scale_factor().max(1.0);
+            (
+                f64::from(monitor.size().width) / scale,
+                f64::from(monitor.size().height) / scale,
+            )
+        })
+        .unwrap_or((1440.0, 900.0));
+    let window = tauri::WebviewWindowBuilder::new(
+        app,
+        "overlay",
+        WebviewUrl::App("index.html?window=overlay&resident=1".into()),
+    )
+    .title("Kaka")
+    .inner_size(size.0, size.1)
+    .decorations(false)
+    .transparent(true)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .resizable(false)
+    .shadow(false)
+    // A capture shortcut is normally pressed in another application. Keep
+    // that application's Space, but let the first drag start selection instead
+    // of spending it on activating Kiri's window.
+    .accept_first_mouse(true)
+    .visible(false)
+    .build()
+    .map_err(|error| format!("resident capture overlay could not be created: {error}"))?;
+    window
+        .hide()
+        .map_err(|error| format!("resident capture overlay could not be hidden: {error}"))?;
+    log::info!("[window] resident capture overlay prepared");
+    Ok(())
+}
+
 fn create_overlay_window(
     app: &AppHandle,
     screen_frame: Rect,
@@ -2400,7 +2705,7 @@ fn create_overlay_window(
         label.clone(),
         WebviewUrl::App(format!("index.html?window=overlay&captureToken={capture_token}").into()),
     )
-    .title("kiri")
+    .title("Kaka")
     .inner_size(screen_frame.width, screen_frame.height)
     .position(screen_frame.x, screen_frame.y)
     .decorations(false)
@@ -2408,7 +2713,8 @@ fn create_overlay_window(
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(false)
-    .shadow(false);
+    .shadow(false)
+    .accept_first_mouse(true);
     // Tao maps visible GTK windows before applying decorations. Keep the Linux
     // overlay hidden until its borderless geometry and compositor policy are
     // configured, so the first map cannot inherit a window-manager frame offset.
@@ -2479,8 +2785,14 @@ pub fn cancel_capture(window: WebviewWindow, app: AppHandle) -> Result<(), Strin
     };
     crate::microphone::stop();
     let Some(session) = session else {
-        log::info!("cancel_capture: no active session; closing orphan overlay");
-        let _ = window.close();
+        log::info!("cancel_capture: no active session; dismissing orphan overlay");
+        #[cfg(target_os = "macos")]
+        let result = platform::hide_window_for_capture(&window);
+        #[cfg(not(target_os = "macos"))]
+        let result = window.close().map_err(anyhow::Error::from);
+        if let Err(error) = result {
+            return Err(error.to_string());
+        }
         return Ok(());
     };
     log::info!(
@@ -2488,6 +2800,16 @@ pub fn cancel_capture(window: WebviewWindow, app: AppHandle) -> Result<(), Strin
         session.capture_id
     );
     teardown_cancelled_capture(&app, session, true);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn dismiss_capture_overlay(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
+    if window.label() != "overlay" {
+        return Err("Only the capture overlay can be dismissed here.".into());
+    }
+    platform::hide_window_for_capture(&window).map_err(|error| error.to_string())?;
+    finalize_confirmed_capture_after_overlay_dismissed(&app, "overlay");
     Ok(())
 }
 
@@ -2500,7 +2822,15 @@ pub(crate) fn teardown_cancelled_capture(
     if close_overlays {
         for label in &session.overlay_labels {
             if let Some(window) = app.get_webview_window(label) {
-                let _ = window.close();
+                if session.resident_overlay && label == "overlay" {
+                    if let Err(error) = platform::hide_window_for_capture(&window) {
+                        log::error!("capture: resident overlay hide failed: {error}");
+                        let _ = window.close();
+                    }
+                    let _ = window.emit("capture-ended", ());
+                } else {
+                    let _ = window.close();
+                }
             }
         }
     }
@@ -2984,7 +3314,8 @@ pub(crate) fn save_scroll_capture(
 /// This callback runs outside the synchronous confirmation IPC, so creating
 /// the completion preview cannot prevent WebView2 from delivering that IPC
 /// response. The first destroyed overlay also closes any peers on other
-/// monitors; the last one presents feedback and restores the capture origin.
+/// monitors; the last one presents feedback and returns focus without
+/// reopening Kiri's hidden windows.
 pub(crate) fn finalize_confirmed_capture_after_overlay_destroyed(app: &AppHandle, label: &str) {
     let state = app.state::<AppState>();
     let (remaining_labels, completed) = {
@@ -3022,7 +3353,7 @@ pub(crate) fn finalize_confirmed_capture_after_overlay_destroyed(app: &AppHandle
     }
 
     if let Some(completed) = completed {
-        restore_focus(app, &completed.session);
+        restore_capture_target_focus(&completed.session);
         if completed.pin_on_top {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
@@ -3049,6 +3380,11 @@ pub(crate) fn finalize_confirmed_capture_after_overlay_destroyed(app: &AppHandle
         }
         log::info!("confirm_capture: completion flow returned after overlay destruction");
     }
+}
+
+/// A resident macOS overlay is hidden rather than destroyed after confirmation.
+pub(crate) fn finalize_confirmed_capture_after_overlay_dismissed(app: &AppHandle, label: &str) {
+    finalize_confirmed_capture_after_overlay_destroyed(app, label);
 }
 
 fn validate_staged_capture_annotation(
@@ -3238,13 +3574,21 @@ pub async fn save_file_dialog(
     Ok(Some(token.to_string()))
 }
 
-pub(crate) fn restore_focus(app: &AppHandle, session: &CaptureSession) {
-    restore_capture_origin(
-        app,
-        &session.hidden_windows,
-        session.was_kiri_frontmost,
-        session.return_pid,
-    );
+fn capture_completion_focus_target(
+    was_kiri_frontmost: bool,
+    return_pid: Option<u32>,
+) -> Option<u32> {
+    (!was_kiri_frontmost).then_some(return_pid).flatten()
+}
+
+/// Return focus after a successful capture without restoring the library
+/// windows hidden while the overlay was active.
+pub(crate) fn restore_capture_target_focus(session: &CaptureSession) {
+    if let Some(pid) =
+        capture_completion_focus_target(session.was_kiri_frontmost, session.return_pid)
+    {
+        platform::activate_application(pid);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -3862,7 +4206,7 @@ pub async fn start_recording_flow(
             }
             Ok(platform::MicrophoneAccess::Denied) | Err(_) => {
                 let message =
-                    "Microphone access is off. Enable Kiri in System Settings to record your microphone.";
+                    "Microphone access is off. Enable Kaka in System Settings to record your microphone.";
                 emit_error(
                     &app,
                     message.into(),
@@ -4021,7 +4365,7 @@ fn create_countdown_window(
         label.clone(),
         WebviewUrl::App(format!("index.html?window=countdown&session={session_id}").into()),
     )
-    .title("kiri")
+    .title("Kaka")
     // Cover the whole display so the countdown badge is centered on the
     // SCREEN, not on the selected region (the user's expectation).
     .inner_size(screen_frame.width, screen_frame.height)
@@ -4270,7 +4614,7 @@ fn create_control_panel(
         "control-panel".to_string(),
         WebviewUrl::App(format!("index.html?window=control-panel&session={session_id}").into()),
     )
-    .title("kiri")
+    .title("Kaka")
     .inner_size(frame.width, frame.height)
     .position(frame.x, frame.y)
     .visible(false)
@@ -4401,7 +4745,7 @@ fn create_recording_region(app: &AppHandle, configuration: &RecordingConfigurati
     let frame = recording_region_frame(configuration);
     let window = WebviewWindowBuilder::new(app, "recording-region",
         WebviewUrl::App("index.html?window=recording-region".into()))
-        .title("kiri").inner_size(frame.width, frame.height).position(frame.x, frame.y)
+        .title("Kaka").inner_size(frame.width, frame.height).position(frame.x, frame.y)
         .visible(false).focused(false).focusable(false).decorations(false)
         .transparent(true).always_on_top(true).skip_taskbar(true).shadow(false).build()
         .map_err(|error| error.to_string())?;
@@ -4431,7 +4775,7 @@ fn create_ripple_window(
         "ripple".to_string(),
         WebviewUrl::App("index.html?window=ripple".into()),
     )
-    .title("kiri")
+    .title("Kaka")
     .inner_size(region.width, region.height)
     .position(frame.x + region.x, frame.y + region.y)
     .decorations(false)
@@ -4883,7 +5227,7 @@ pub async fn begin_recording(app: AppHandle, session_id: Option<uuid::Uuid>) -> 
         // every launch).
         if let Err(error) = crate::ensure_click_monitor(&app) {
             log::error!("recording: global click monitor unavailable: {error}");
-            let message = "Input Monitoring is off. Enable Kiri in System Settings to highlight clicks while recording.";
+            let message = "Input Monitoring is off. Enable Kaka in System Settings to highlight clicks while recording.";
             #[cfg(target_os = "macos")]
             let recovery = Some(RecoveryAction::OpenInputMonitoringSettings);
             #[cfg(any(windows, target_os = "linux"))]
@@ -4914,7 +5258,7 @@ pub async fn begin_recording(app: AppHandle, session_id: Option<uuid::Uuid>) -> 
     }
 
     let out_path = std::env::temp_dir().join(format!(
-        "kiri-recording-{}.mp4",
+        "kaka-recording-{}.mp4",
         uuid::Uuid::new_v4().to_string().to_lowercase()
     ));
 
@@ -5173,7 +5517,7 @@ async fn resume_recording_session(app: AppHandle, expected_session: Option<uuid:
     };
 
     let out_path = std::env::temp_dir().join(format!(
-        "kiri-recording-{}.mp4",
+        "kaka-recording-{}.mp4",
         uuid::Uuid::new_v4().to_string().to_lowercase()
     ));
 
@@ -5615,7 +5959,7 @@ fn finalize_recording(
     let state = app.state::<AppState>();
     let _recovery_transition = state.recording_recovery_transition.lock().unwrap();
     let merged_path = std::env::temp_dir().join(format!(
-        "kiri-recording-merged-{}.mp4",
+        "kaka-recording-merged-{}.mp4",
         uuid::Uuid::new_v4().to_string().to_lowercase()
     ));
     let mut merge_completed = false;
@@ -6014,7 +6358,7 @@ fn shortcut_status(
 ) -> ShortcutStatusDto {
     if crate::shortcut_settings::system_managed() {
         return ShortcutStatusDto {
-            label: "kiri --capture".into(),
+            label: "kaka --capture".into(),
             status: ShortcutRegistrationStatus::SystemManaged,
         };
     }
@@ -6186,7 +6530,7 @@ pub async fn authorize_screenshot(window: WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         if !window.is_focused().unwrap_or(false) {
-            return Err("Focus the Kiri Library before requesting screenshot access.".into());
+            return Err("Focus the Kaka Library before requesting screenshot access.".into());
         }
         let state = window.state::<AppState>();
         let _start_permit = state
@@ -6215,12 +6559,13 @@ pub fn quit_app(app: AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod command_security_tests {
     use super::{
-        capture_failure_requires_global_error, cleanup_finalization_files, commit_editor_update,
-        complete_library_deletion, crop_annotation_source, crop_editor_source,
-        editor_save_destination, parse_editor_save_action, recording_channels,
-        sanitize_frontend_log, validate_capture_png, validate_editor_annotation_document,
-        validate_replacement_metadata, validate_staged_capture_annotation, write_editor_save,
-        EditorCropPixels, EditorSaveAction, ShortcutRegistrationStatus,
+        capture_completion_focus_target, capture_failure_requires_global_error,
+        cleanup_finalization_files, commit_editor_update, complete_library_deletion,
+        crop_annotation_source, crop_editor_source, editor_save_destination,
+        parse_editor_save_action, recording_channels, sanitize_frontend_log,
+        validate_capture_png, validate_editor_annotation_document, validate_replacement_metadata,
+        validate_staged_capture_annotation, write_editor_save, EditorCropPixels, EditorSaveAction,
+        ShortcutRegistrationStatus,
         EDITOR_ACTION_INVALID_ERROR, EDITOR_SAVE_ERROR,
     };
     use crate::core::annotation::AnnotationDocument;
@@ -6494,6 +6839,13 @@ mod command_security_tests {
     fn capture_double_failure_requires_a_global_error_after_the_overlay_closes() {
         assert!(capture_failure_requires_global_error(false));
         assert!(!capture_failure_requires_global_error(true));
+    }
+
+    #[test]
+    fn successful_capture_only_returns_focus_to_an_external_application() {
+        assert_eq!(capture_completion_focus_target(false, Some(42)), Some(42));
+        assert_eq!(capture_completion_focus_target(false, None), None);
+        assert_eq!(capture_completion_focus_target(true, Some(42)), None);
     }
 
     #[test]

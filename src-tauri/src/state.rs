@@ -22,6 +22,9 @@ use crate::core::policy::RecordingOptions;
 use crate::core::recording_recovery::RecordingRecoveryStore;
 use crate::record::SegmentEncoder;
 
+const PASSIVE_TOAST_WIDTH: f64 = 360.0;
+const COMPLETION_TOAST_WIDTH: f64 = 420.0;
+
 pub struct AppState {
     pub library: std::sync::Mutex<LibraryContext>,
     pub library_transition: std::sync::Mutex<()>,
@@ -174,6 +177,13 @@ pub enum CaptureMode {
 
 pub struct CaptureSession {
     pub capture_id: uuid::Uuid,
+    /// Opaque per-capture protocol token, reserved before PNG encoding.
+    pub capture_token: String,
+    /// Distinguishes an empty display with no windows from geometry that is
+    /// still being enumerated in the background.
+    pub window_rects_ready: bool,
+    /// macOS keeps one overlay WebView mounted for the process lifetime.
+    pub resident_overlay: bool,
     pub initial_mode: CaptureMode,
     pub display: CapturedDisplay,
     pub source_application: Option<String>,
@@ -564,8 +574,8 @@ impl AppState {
     pub fn new(app: &AppHandle) -> anyhow::Result<Self> {
         let config_dir = app.path().app_config_dir()?;
         let default_root = AssetLibrary::default_root_url()
-            .or_else(|| dirs::data_local_dir().map(|dir| dir.join("kiri")))
-            .ok_or_else(|| anyhow::anyhow!("the default Kiri library path is unavailable"))?;
+            .or_else(|| dirs::data_local_dir().map(|dir| dir.join("kaka")))
+            .ok_or_else(|| anyhow::anyhow!("the default Kaka library path is unavailable"))?;
         let library = LibraryContext::open(default_root, config_dir.clone())?;
         let recording_recovery = RecordingRecoveryStore::new(
             app.path().app_local_data_dir()?.join("Recording Recovery"),
@@ -700,7 +710,7 @@ pub fn show_confirm_dialog(
                     .into(),
                 ),
             )
-            .title("kiri")
+            .title("Kaka")
             .decorations(false)
             .transparent(true)
             .shadow(false)
@@ -805,7 +815,7 @@ fn show_completion_toast_inner(app: &AppHandle, notice: &NoticeDto, monitor: Opt
                     .into(),
                 ),
             )
-            .title("kiri")
+            .title("Kaka")
             .decorations(false)
             .transparent(true)
             .shadow(false)
@@ -815,7 +825,7 @@ fn show_completion_toast_inner(app: &AppHandle, notice: &NoticeDto, monitor: Opt
             .resizable(false)
             .focused(false)
             .visible(false)
-            .inner_size(360.0, 60.0)
+            .inner_size(PASSIVE_TOAST_WIDTH, 60.0)
             .position(0.0, 0.0);
             let window = match builder.build() {
                 Ok(window) => window,
@@ -836,7 +846,7 @@ fn show_completion_toast_inner(app: &AppHandle, notice: &NoticeDto, monitor: Opt
         })
         .or_else(|| app.primary_monitor().ok().flatten());
     if let Some(monitor) = target_monitor {
-        position_completion_toast(&window, &monitor, 60.0);
+        position_completion_toast(&window, &monitor, PASSIVE_TOAST_WIDTH, 60.0);
     }
 
     // Content is delivered via event so the resident window can update in
@@ -857,8 +867,8 @@ fn show_completion_toast_inner(app: &AppHandle, notice: &NoticeDto, monitor: Opt
 }
 
 /// Shows an interactive completion card in the same resident global-feedback
-/// window used by passive notices. The window is visible without taking focus;
-/// it accepts pointer input only while the completion card is active.
+/// window used by passive notices. Processing stays non-activating; a ready
+/// card takes focus so its actions respond to the first click.
 pub fn show_completion_preview(
     app: &AppHandle,
     preview: &CompletionPreviewDto,
@@ -896,7 +906,7 @@ fn show_completion_preview_inner(
             return;
         }
     }
-    let height = if preview.phase == "failed" { if preview.asset_id.is_none() { 144.0 } else { 224.0 } } else { 124.0 };
+    let height = if preview.phase == "failed" { if preview.asset_id.is_none() { 144.0 } else { 224.0 } } else { 160.0 };
     let label = "toast";
     let asset_id = preview.asset_id.as_deref().unwrap_or_default();
     let initial_url = format!(
@@ -915,7 +925,7 @@ fn show_completion_preview_inner(
         None => {
             let builder =
                 WebviewWindowBuilder::new(app, label, WebviewUrl::App(initial_url.into()))
-                    .title("kiri")
+                    .title("Kaka")
                     .decorations(false)
                     .transparent(true)
                     .shadow(false)
@@ -925,7 +935,7 @@ fn show_completion_preview_inner(
                     .resizable(false)
                     .focused(false)
                     .visible(false)
-                    .inner_size(360.0, height)
+                    .inner_size(COMPLETION_TOAST_WIDTH, height)
                     .position(0.0, 0.0);
             let window = match builder.build() {
                 Ok(window) => window,
@@ -946,19 +956,30 @@ fn show_completion_preview_inner(
         })
         .or_else(|| app.primary_monitor().ok().flatten());
     if let Some(monitor) = target_monitor {
-        position_completion_toast(&window, &monitor, height);
+        position_completion_toast(&window, &monitor, COMPLETION_TOAST_WIDTH, height);
     }
 
     #[cfg(not(target_os = "linux"))]
     let _ = window.set_ignore_cursor_events(preview.phase == "processing");
-    let _ = window.set_content_protected(true);
-    crate::platform::set_window_capture_excluded(app, label, true);
+    // This card contains the visible sharing action. Keep passive notices
+    // protected, but let the interactive completion card appear in screen
+    // sharing and remote-desktop sessions. Capture startup hides it again
+    // before freezing the next frame.
+    let _ = window.set_content_protected(false);
+    crate::platform::set_window_capture_excluded(app, label, false);
     let _ = window.emit("completion-preview", preview.clone());
     crate::platform::show_window_without_activation(
         app,
         label,
         crate::platform::TransientWindowRole::CompletionFeedback,
     );
+    // AppKit otherwise gives the first click to making this non-activated
+    // window key. Ready cards contain actions, so make the card key when it
+    // appears and let the first action click reach the WebView.
+    #[cfg(target_os = "macos")]
+    if preview.phase == "ready" {
+        let _ = window.set_focus();
+    }
     log::info!(
         "[toast] completion preview presented phase={} kind={}",
         preview.phase,
@@ -979,26 +1000,27 @@ fn focused_kiri_monitor(app: &AppHandle) -> Option<Monitor> {
         })
 }
 
-fn position_completion_toast(window: &WebviewWindow, monitor: &Monitor, height: f64) {
+fn position_completion_toast(window: &WebviewWindow, monitor: &Monitor, width: f64, height: f64) {
     let work_area = monitor.work_area();
-    let position = toast_position(work_area.position, work_area.size, monitor.scale_factor());
+    let position = toast_position(work_area.position, work_area.size, monitor.scale_factor(), width);
 
     // Position first so the following logical size is resolved using the
     // destination display's scale factor on mixed-DPI setups.
     let _ = window.set_position(position);
-    let _ = window.set_size(LogicalSize::new(360.0, height));
+    let _ = window.set_size(LogicalSize::new(width, height));
 }
 
 /// Top-center toast position in physical desktop coordinates. Including the
 /// work-area origin keeps the toast on secondary displays (including displays
 /// arranged left/above the primary), and using the destination scale keeps a
-/// 360pt toast centered on Retina/mixed-DPI screens.
+/// fixed logical-width toast centered on Retina/mixed-DPI screens.
 fn toast_position(
     work_area_position: PhysicalPosition<i32>,
     work_area_size: PhysicalSize<u32>,
     scale: f64,
+    logical_width: f64,
 ) -> PhysicalPosition<i32> {
-    let toast_width = (360.0 * scale).round() as i64;
+    let toast_width = (logical_width * scale).round() as i64;
     let available_width = i64::from(work_area_size.width);
     let centered_offset = ((available_width - toast_width) / 2).max(0);
     let x = i64::from(work_area_position.x) + centered_offset;
@@ -1072,7 +1094,7 @@ fn mark_error_seen(message: &str) -> bool {
 }
 
 /// Appends `[timestamp] message (recovery)` to the per-user error log at
-/// `~/Library/Logs/io.yuxino.kiri/errors.log` (or the equivalent platform
+/// `~/Library/Logs/io.cxq1221.kaka/errors.log` (or the equivalent platform
 /// log dir). Failures are never silently dropped: even deduped repeats are
 /// recorded here for later inspection.
 fn append_error_log(message: &str, recovery: Option<RecoveryAction>) {
@@ -1114,11 +1136,11 @@ fn append_error_log(message: &str, recovery: Option<RecoveryAction>) {
 pub(crate) fn log_dir() -> Option<std::path::PathBuf> {
     #[cfg(target_os = "macos")]
     {
-        dirs::home_dir().map(|home| home.join("Library/Logs/io.yuxino.kiri"))
+        dirs::home_dir().map(|home| home.join("Library/Logs/io.cxq1221.kaka"))
     }
     #[cfg(not(target_os = "macos"))]
     {
-        dirs::data_local_dir().map(|dir| dir.join("kiri/logs"))
+        dirs::data_local_dir().map(|dir| dir.join("kaka/logs"))
     }
 }
 
@@ -1249,7 +1271,7 @@ mod tests {
     use super::{
         mark_error_seen, toast_position, urlencode, ActiveRecording, CaptureFlow,
         CaptureScheduleGate, CaptureSession, CaptureStartGate, RecordingConfiguration,
-        RecordingFlow, RecordingSaveJobDto, RecordingSaveJobs,
+        RecordingFlow, RecordingSaveJobDto, RecordingSaveJobs, PASSIVE_TOAST_WIDTH,
     };
     use crate::capture::CapturedDisplay;
     use crate::core::geometry::Rect;
@@ -1302,11 +1324,12 @@ mod tests {
 
     #[test]
     fn toast_position_is_top_centered_on_screen() {
-        // Retina 3024×1964 @2x: the 360pt toast is 720 physical pixels wide.
+        // Retina 3024×1964 @2x: a 360pt passive toast is 720 physical pixels wide.
         let position = toast_position(
             tauri::PhysicalPosition::new(0, 48),
             tauri::PhysicalSize::new(3024, 1916),
             2.0,
+            PASSIVE_TOAST_WIDTH,
         );
         assert_eq!(position.x, (3024 - 720) / 2);
         assert_eq!(position.y, 48 + 40);
@@ -1316,6 +1339,7 @@ mod tests {
             tauri::PhysicalPosition::new(-1920, 0),
             tauri::PhysicalSize::new(1920, 1040),
             1.0,
+            PASSIVE_TOAST_WIDTH,
         );
         assert_eq!(position.x, -1920 + (1920 - 360) / 2);
         assert_eq!(position.y, 20);
@@ -1326,6 +1350,7 @@ mod tests {
             tauri::PhysicalPosition::new(200, 100),
             tauri::PhysicalSize::new(320, 240),
             1.0,
+            PASSIVE_TOAST_WIDTH,
         );
         assert_eq!(position.x, 200);
         assert_eq!(position.y, 120);
@@ -1389,6 +1414,9 @@ mod tests {
         let mut flow = CaptureFlow {
             session: Some(CaptureSession {
                 capture_id,
+                capture_token: "0123456789abcdef0123456789abcdef".into(),
+                window_rects_ready: true,
+                resident_overlay: false,
                 initial_mode: super::CaptureMode::Screenshot,
                 display: CapturedDisplay {
                     png_data: vec![1].into(),

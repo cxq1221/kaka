@@ -8,11 +8,11 @@ repository. Include the affected revision, reproduction steps, and expected
 impact. Remove personal screen contents, tokens, and credentials from logs or
 sample files.
 
-kiri is local-first and does not upload captures automatically. A change that
+Kaka is local-first and does not upload captures automatically. A change that
 transfers capture contents or other user data must make the destination and
 user action explicit.
 
-Editable annotation documents are treated as untrusted local input. Kiri
+Editable annotation documents are treated as untrusted local input. Kaka
 validates their schema and bounds, verifies the source and flattened-image
 hashes, and refuses stale editor saves instead of pairing a document with a
 different image revision. Native Save panels issue a one-time destination
@@ -35,7 +35,7 @@ at application exit.
 Application updates use Tauri's signed updater with a fixed HTTPS manifest and
 an embedded public key. Checks, downloads, and installation are separate
 user-initiated actions. A downloaded archive must pass signature verification
-before installation; Kiri never accepts an updater endpoint, executable path,
+before installation; Kaka never accepts an updater endpoint, executable path,
 or public key from remote release notes.
 
 Optional remote OCR follows that rule per image. The app prepares only the

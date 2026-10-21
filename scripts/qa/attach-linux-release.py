@@ -12,7 +12,7 @@ import sys
 from urllib.parse import urlencode
 
 
-OFFICIAL_REPOSITORY = "yuxino/kiri"
+OFFICIAL_REPOSITORY = "cxq1221/kaka"
 BUILD_WORKFLOW = ".github/workflows/build.yml"
 TAG = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 
@@ -92,7 +92,7 @@ def digest(path):
 
 
 def candidate_files(directory, version):
-    filename = f"kiri_{version}_amd64.deb"
+    filename = f"kaka_{version}_amd64.deb"
     paths = sorted(directory.iterdir())
     require({path.name for path in paths} == {filename, "provenance.json"},
             "Candidate must contain only the matching Debian package and original provenance.json")
@@ -103,7 +103,7 @@ def candidate_files(directory, version):
 
 
 def validate_deb(path, version):
-    for field, expected in (("Package", "kiri"), ("Version", version), ("Architecture", "amd64")):
+    for field, expected in (("Package", "kaka"), ("Version", version), ("Architecture", "amd64")):
         require(command("dpkg-deb", "--field", str(path), field) == expected,
                 f"Debian {field} does not match the release")
 
@@ -131,7 +131,7 @@ def verify_candidate(args, repository, version, run_id, api=github_api):
     require(evidence.get("verified") is True
             and evidence.get("candidate", {}).get("source_sha") == source_sha,
             "Verified candidate source must exactly equal the release tag")
-    validate_deb(files[f"kiri_{version}_amd64.deb"]["path"], version)
+    validate_deb(files[f"kaka_{version}_amd64.deb"]["path"], version)
     return source_sha, files
 
 

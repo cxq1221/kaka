@@ -68,7 +68,7 @@ agent-created test assets to recoverable Trash after review. Never empty Trash
 or manipulate unrelated library files.
 
 For repeatable local QA, start the normal overlay with the installed executable's
-`--capture` command (on macOS, `/Applications/Kiri.app/Contents/MacOS/kiri --capture`).
+`--capture` command (on macOS, `/Applications/Kaka.app/Contents/MacOS/kaka --capture`).
 This entry works for the running instance and first launch without synthetic
 keyboard input. Use the real overlay, source application and selected pixels for
 the remaining steps. CLI entry verification does not substitute for testing the
@@ -163,7 +163,7 @@ For each supported native platform, test:
 
 ## Platform evidence boundaries
 
-- macOS: package/install the stable signed `/Applications/Kiri.app` and test
+- macOS: package/install the stable signed `/Applications/Kaka.app` and test
   existing Screen Recording permission, normal and full-screen Spaces, Retina
   pixels, source focus, region-guide passthrough, in-selection control exclusion
   and the one-window filter with external and same-app floating obstructions.

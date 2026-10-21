@@ -3,7 +3,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {getCurrentWebview} from "@tauri-apps/api/webview";
-import {ImagePlus} from "lucide-react";
+import {ImagePlus, ScanLine} from "lucide-react";
 import { createPortal } from "react-dom";
 import {
   api,
@@ -586,6 +586,12 @@ export function LibraryWindow() {
     }
   };
 
+  const startCapture = () => {
+    void api.startCapture().catch(() => {
+      setError({ message: t("Could not start capture. Try again."), recovery: null });
+    });
+  };
+
   const openMenu = (id: string, x: number, y: number, trigger?: HTMLButtonElement, focusFirst = false) => {
     if (menuFor === id && trigger && menuTriggerRef.current === trigger) {
       closeMenu();
@@ -776,6 +782,21 @@ export function LibraryWindow() {
           disabled={assetAvailability[asset.id] !== undefined && assetAvailability[asset.id] !== "ready"}
           onClick={run(() => void copyCapture(asset.id, true))}
         />
+        {asset.kind === "image" && !showingTrash && (
+          <MenuRow
+            icon="arrow.up.right"
+            label={t("Send to LanChat")}
+            disabled={assetAvailability[asset.id] !== undefined && assetAvailability[asset.id] !== "ready"}
+            onClick={run(() => {
+              void api.shareAssetToLanChat(asset.id)
+                .then((result) => showLocalNotice(fmt("Sent to %@", result.roomName)))
+                .catch((error: unknown) => {
+                  const message = error instanceof Error ? error.message : String(error);
+                  setError({ message, recovery: null });
+                });
+            })}
+          />
+        )}
         {asset.kind === "image" && !showingTrash && <MenuRow icon="qrcode" label={t("Recognize QR Codes")} disabled={assetAvailability[asset.id] !== undefined && assetAvailability[asset.id] !== "ready"} onClick={run(() => void api.openEditor(asset.id, true).catch(() => setError({ message: t("QR recognition failed."), recovery: null })))} />}
         {asset.kind === "image" && (!showingTrash || asset.ocrText != null) && <MenuRow
           icon="text.viewfinder"
@@ -896,6 +917,7 @@ export function LibraryWindow() {
       restoreMissing,
       run,
       showConfirmDialog,
+      showLocalNotice,
       showingTrash,
       startGifConversion,
     ],
@@ -967,8 +989,12 @@ export function LibraryWindow() {
       <aside className="library-sidebar">
         <div className="library-sidebar__brand">
           <img src={brandIcon} alt="" />
-          <strong>kiri</strong>
+          <span className="library-sidebar__brand-copy">
+            <strong>kaka</strong>
+            <span>{t("Capture")} / {t("Library")}</span>
+          </span>
         </div>
+        <div className="library-sidebar__rule" aria-hidden="true" />
       <SegmentedPicker
         options={[
           { label: t("Library"), icon: "square.grid.3x3.fill" },
@@ -999,6 +1025,10 @@ export function LibraryWindow() {
       <header className={`library-control-panel${destination === "settings" ? " library-control-panel--settings" : ""}`}>
         <div className="library-control-panel__primary">
             <div className="library-control-panel__titles">
+              <span className="library-control-panel__eyebrow">
+                <span aria-hidden="true" />
+                kaka / {t("Capture")}
+              </span>
               <h1 id="library-page-title" className="library-control-panel__title">
                 {destination === "settings"
                   ? t("Settings")
@@ -1021,6 +1051,14 @@ export function LibraryWindow() {
 
           <div className="library-control-panel__actions">
             {destination === "captures" && libraryStatus?.availability === "ready" && <>
+              <button type="button" className="kiri-button kiri-button--primary library-capture-button"
+                onClick={startCapture}>
+                <ScanLine size={16} />
+                {t("Capture")}
+                {getAvailableShortcutLabel(shortcutStatus) && (
+                  <kbd>{getAvailableShortcutLabel(shortcutStatus)}</kbd>
+                )}
+              </button>
               <button type="button" className="kiri-button kiri-button--secondary"
                 aria-pressed={selectionMode || selectionIds.length > 0}
                 disabled={batchBusy || exportBusy || (!selectionMode && selectionIds.length === 0 && filteredAssets.length === 0)}
@@ -1193,6 +1231,7 @@ export function LibraryWindow() {
         <EmptyState
           isTrashEmpty={isEmpty && showingTrash}
           shortcutStatus={shortcutStatus}
+          onStartCapture={startCapture}
         />
       ) : isFilterEmpty ? (
         <div
@@ -1246,8 +1285,9 @@ export function LibraryWindow() {
             />
           )}
           {groupByDay(visibleEntries).map((group) => (
-            <div key={group.key} style={{ marginBottom: 22 }}>
+            <div key={group.key} className="library-day-group">
               <div
+                className="library-day-heading"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1265,6 +1305,7 @@ export function LibraryWindow() {
                   }}
                 />
                 <span
+                  className="library-day-label"
                   style={{
                     fontSize: 14,
                     fontWeight: 650,
@@ -1274,6 +1315,7 @@ export function LibraryWindow() {
                   {group.label}
                 </span>
                 <span
+                  className="library-day-count"
                   style={{
                     fontSize: 12.5,
                     fontWeight: 600,
@@ -1286,7 +1328,7 @@ export function LibraryWindow() {
                   {group.assets.length}
                 </span>
               </div>
-              <div style={gridStyle}>
+              <div className="library-contact-grid" style={gridStyle}>
                 {group.assets.map((asset) => !("filename" in asset) ? (
                   <RecordingSaveCard key={`saving-${asset.id}`} job={asset} />
                 ) : (
@@ -1809,6 +1851,8 @@ function AssetCard(props: {
       ref={registerRef}
       className="library-asset-card"
       data-card={asset.id}
+      data-selected={selected || undefined}
+      data-highlighted={highlighted || undefined}
       role="article"
       tabIndex={0}
       aria-label={asset.title ?? asset.filename}
@@ -1841,17 +1885,6 @@ function AssetCard(props: {
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false);
       }}
-      style={{
-        position: "relative",
-        background: "var(--kiri-card)",
-        border: `1px solid ${selected ? "var(--kiri-accent-strong)" : highlighted ? "color-mix(in srgb, var(--kiri-label) 34%, var(--kiri-surface-border))" : "var(--kiri-surface-border)"}`,
-        borderRadius: 10,
-        padding: 8,
-        transform: "none",
-        boxShadow: selected ? "0 0 0 2px var(--kiri-accent-alpha-18)" : "none",
-        transition: "transform 0.18s ease-out, box-shadow 0.18s ease-out, border-color 0.18s ease-out",
-        cursor: "default",
-      }}
     >
       {selectionActive && <input type="checkbox" checked={selected} disabled={selectionBusy}
         aria-label={`${t("Select capture")}: ${asset.title ?? asset.filename}`}
@@ -1860,6 +1893,7 @@ function AssetCard(props: {
         style={{ position: "absolute", top: 10, right: 10, width: 18, height: 18, zIndex: 3, margin: 0, accentColor: "var(--kiri-accent)" }} />}
       <div
         ref={previewRef}
+        className="library-asset-card__preview"
         style={{
           height: 154,
           borderRadius: 6,
@@ -1978,7 +2012,7 @@ function AssetCard(props: {
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", columnGap: 7, rowGap: 2, marginTop: 8, padding: "0 1px 1px", position: "relative" }}>
+      <div className="library-asset-card__meta" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", columnGap: 7, rowGap: 2, marginTop: 8, padding: "0 1px 1px", position: "relative" }}>
         {editingTitle ? (
           <input
             className="kiri-inline-rename-input"
@@ -2040,6 +2074,7 @@ function AssetCard(props: {
             }}
           >
             <span
+              className="library-asset-card__title"
               style={{
                 fontSize: 14,
                 fontWeight: 700,
@@ -2180,6 +2215,7 @@ function AssetCard(props: {
           </button>
         </div>
         <span
+          className="library-asset-card__dimensions"
           title={`${asset.pixelWidth} × ${asset.pixelHeight} · ${t(asset.kind === "image" ? "Image" : asset.kind === "video" ? "Video" : "GIF")}${fileSize ? ` · ${t("File Size")}: ${fileSize}` : ""}`}
           style={{
             gridColumn: "1 / -1",
@@ -2204,7 +2240,7 @@ function AssetCard(props: {
       </div>
       {/* Tag chips */}
       {(asset.tags.length > 0 || addingTag) && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+        <div className="library-asset-card__tags" style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
           {asset.tags.map((tag) => (
             <span
               key={tag}
@@ -2498,7 +2534,7 @@ function SegmentedPicker(props: {
           </span>
         </button>
   ));
-  return <nav className="library-section-picker" aria-label="Kiri">
+  return <nav className="library-section-picker" aria-label="Kaka">
     {buttons.slice(0, -1)}
     <div className="library-section-picker__footer">{buttons[buttons.length - 1]}</div>
   </nav>;
@@ -2507,8 +2543,9 @@ function SegmentedPicker(props: {
 function EmptyState(props: {
   isTrashEmpty: boolean;
   shortcutStatus: ShortcutStatusDto | null;
+  onStartCapture(): void;
 }) {
-  const { isTrashEmpty, shortcutStatus } = props;
+  const { isTrashEmpty, shortcutStatus, onStartCapture } = props;
   const title = isTrashEmpty
     ? t("Trash is empty")
     : t("Ready for your first capture");
@@ -2524,6 +2561,7 @@ function EmptyState(props: {
     : null;
   return (
     <div
+      className="library-empty-state"
       style={{
         flex: 1,
         display: "flex",
@@ -2572,6 +2610,13 @@ function EmptyState(props: {
         >
           {hint}
         </div>
+      )}
+      {!isTrashEmpty && (
+        <button type="button" className="kiri-button kiri-button--primary library-empty-state__capture"
+          onClick={onStartCapture}>
+          <ScanLine size={16} />
+          {t("Capture")}
+        </button>
       )}
     </div>
   );

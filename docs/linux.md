@@ -1,9 +1,9 @@
 # Linux
 
-Kiri supports **Ubuntu 24.04 x64 with GNOME**, on Wayland and X11.
-Find published packages on [GitHub Releases](https://github.com/yuxino/kiri/releases).
-For a source revision not yet released, download its `kiri-linux-deb` artifact
-from a successful [build run](https://github.com/yuxino/kiri/actions/workflows/build.yml),
+Kaka supports **Ubuntu 24.04 x64 with GNOME**, on Wayland and X11.
+Find published packages on [GitHub Releases](https://github.com/cxq1221/kaka/releases).
+For a source revision not yet released, download its `kaka-linux-deb` artifact
+from a successful [build run](https://github.com/cxq1221/kaka/actions/workflows/build.yml),
 or build the package below. Match the artifact to the revision you want to test.
 
 ## Install and update
@@ -13,8 +13,8 @@ dependencies are installed automatically:
 
 ```bash
 # Replace VERSION with the version in the downloaded filename.
-sudo apt install ./kiri_VERSION_amd64.deb
-kiri
+sudo apt install ./kaka_VERSION_amd64.deb
+kaka
 ```
 
 Use `apt install` with the local package so its declared dependencies are
@@ -31,19 +31,19 @@ Secret Service implementation, normally GNOME Keyring on Ubuntu. Local OCR
 does not require an account or a network connection.
 
 Linux has no in-app installer or signed updater artifacts. Download a newer
-`.deb`, quit Kiri, and install the replacement with the same command. Library
+`.deb`, quit Kaka, and install the replacement with the same command. Library
 and settings remain in the user profile. AppImage and Flatpak packaging are
 not part of this first maintained package path.
 
-The default library is `$XDG_DATA_HOME/kiri`, or `~/.local/share/kiri` when that
+The default library is `$XDG_DATA_HOME/kaka`, or `~/.local/share/kaka` when that
 variable is unset. Use Settings to change the library location. Do not move or
-delete its files manually while Kiri is running.
+delete its files manually while Kaka is running.
 
 ## GNOME Wayland
 
-Use Kiri's Capture button, or create a custom shortcut in GNOME Settings with
-the command `kiri --capture`. Choose an available key combination, such as
-`Ctrl+Shift+A`. Kiri does not register an XWayland shortcut as a Wayland binding,
+Use Kaka's Capture button, or create a custom shortcut in GNOME Settings with
+the command `kaka --capture`. Choose an available key combination, such as
+`Ctrl+Shift+A`. Kaka does not register an XWayland shortcut as a Wayland binding,
 edit your compositor configuration, or install a Hyprland FIFO listener.
 
 ### Optional desktop-approved shortcuts
@@ -51,26 +51,26 @@ edit your compositor configuration, or install a Hyprland FIFO listener.
 In Settings → Shortcuts, **Wayland Desktop Shortcuts** checks the installed
 `org.freedesktop.portal.GlobalShortcuts` interface. **Set Up Desktop Shortcuts**
 asks the desktop for Capture, Pause/Resume Recording, and Stop Recording only.
-Choose/approve keys in the desktop dialog. Kiri shows its returned trigger
+Choose/approve keys in the desktop dialog. Kaka shows its returned trigger
 text for each action; **Not bound** means no usable trigger was returned.
 A cancelled/declined/failed request must not display active Portal bindings.
 Command guidance remains visible even when Portal setup succeeds.
 
-Approved bindings are restored by one attempt on Kiri's next start; the
-desktop may ask again. On session/service loss Kiri clears its displayed
+Approved bindings are restored by one attempt on Kaka's next start; the
+desktop may ask again. On session/service loss Kaka clears its displayed
 bindings; select **Reconnect Desktop Shortcuts** to try again. Use **Open
 Desktop Shortcut Settings** when interface version 2 supports it. Version 1
 uses the desktop's own settings or another explicit setup. Refresh checks the
 current session, including remapped or revoked keys. **Disconnect Desktop
-Shortcuts** ends Kiri's session and stops automatic restoration; the desktop
+Shortcuts** ends Kaka's session and stops automatic restoration; the desktop
 may retain saved choices. Leaving Settings during setup cancels the request.
 
-| Desktop/backend | Upstream capability | Kiri behavior |
+| Desktop/backend | Upstream capability | Kaka behavior |
 | --- | --- | --- |
 | Ubuntu 24.04 / GNOME 46 | No GlobalShortcuts backend | Always retain manual CLI bindings; installing the frontend does not add support |
 | GNOME 48+ | Backend introduced in 48.rc | Offer setup only after the installed interface/identity probe succeeds |
 | KDE portal backend | GlobalShortcuts implemented; current upstream advertises v2 | Runtime probe; use ConfigureShortcuts only with v2 |
-| Hyprland portal backend | Upstream supports activation but currently returns empty trigger descriptions | Unconfirmed actions stay inactive in Kiri; use CLI bindings until the backend reports usable trigger metadata |
+| Hyprland portal backend | Upstream supports activation but currently returns empty trigger descriptions | Unconfirmed actions stay inactive in Kaka; use CLI bindings until the backend reports usable trigger metadata |
 | X11 | Native global-hotkey path | Four launch actions plus two recording-only actions; no Portal startup |
 
 Sources: [GNOME release history](https://github.com/GNOME/xdg-desktop-portal-gnome/blob/main/NEWS),
@@ -80,16 +80,16 @@ Sources: [GNOME release history](https://github.com/GNOME/xdg-desktop-portal-gno
 [Portal protocol](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.GlobalShortcuts.html).
 The current [Hyprland implementation](https://github.com/hyprwm/xdg-desktop-portal-hyprland/blob/master/src/portals/GlobalShortcuts.cpp)
 returns empty trigger descriptions ([upstream issue #312](https://github.com/hyprwm/xdg-desktop-portal-hyprland/issues/312)).
-Kiri deliberately does not claim or activate an unconfirmed binding. Use command
+Kaka deliberately does not claim or activate an unconfirmed binding. Use command
 shortcuts on affected versions; KDE is the alternate-desktop acceptance target.
 
-These are upstream capabilities, not evidence that a Kiri package has passed
+These are upstream capabilities, not evidence that a Kaka package has passed
 physical-desktop acceptance.
 
 For host `.deb` builds, the dedicated D-Bus connection registers
-`io.yuxino.kiri` before other Portal calls. The package installs the matching
-`/usr/share/applications/io.yuxino.kiri.desktop` metadata entry with
-`NoDisplay=true`; the normal `kiri.desktop` launcher remains unchanged.
+`io.cxq1221.kaka` before other Portal calls. The package installs the matching
+`/usr/share/applications/io.cxq1221.kaka.desktop` metadata entry with
+`NoDisplay=true`; the normal `kaka.desktop` launcher remains unchanged.
 An uninstalled development binary may lack this identity and correctly fall
 back to commands. Do not manually modify permissions or compositor settings
 as part of troubleshooting. See the
@@ -101,17 +101,17 @@ belongs to a portal image. Select a region by dragging; Wayland window hover
 outlines and click-to-select windows are unavailable.
 
 GNOME may show a Screenshot permission dialog. Allow the screenshot and return
-to Kiri's selection overlay. Cancel closes the request without saving. If a
-first capture fails without a prompt, open Kiri's Library and select **Request
+to Kaka's selection overlay. Cancel closes the request without saving. If a
+first capture fails without a prompt, open Kaka's Library and select **Request
 Access** in the error banner. This asks GNOME to show its screenshot permission
-dialog while Kiri has focus. Choose **Allow**; Kiri discards the authorization
+dialog while Kaka has focus. Choose **Allow**; Kaka discards the authorization
 image. Retry Capture for the normal whole-display selection overlay. If you
-deny or cancel the dialog, Kiri does not retry it automatically. On compatible
+deny or cancel the dialog, Kaka does not retry it automatically. On compatible
 wlroots desktops, installed `grim` may provide the still screenshot; it is
 optional on GNOME.
 
 Recording makes a separate ScreenCast request. **Select the same display** as
-the frozen screenshot. Kiri checks the supplied stream dimensions before using
+the frozen screenshot. Kaka checks the supplied stream dimensions before using
 the selected region. A denial, timeout, or inconsistent source must produce an
 error, not a recording from an arbitrary screen. CI exercises the GNOME portal
 and scaling on virtual displays; physical-desktop acceptance remains separate.
@@ -121,19 +121,19 @@ reliably exclude it. Use Pause/Resume and Stop in the tray menu, or configure
 desktop shortcuts for these commands before recording:
 
 ```bash
-kiri --toggle-recording-pause
-kiri --stop-recording
+kaka --toggle-recording-pause
+kaka --stop-recording
 ```
 
 These commands pause/resume or stop and save the current recording. They do
 nothing while no recording is active. Wayland's desktop owns both manual command
 bindings and Portal bindings, so it may continue reserving their keys between
-recordings; Kiri does not promise to release those desktop-owned keys while idle.
+recordings; Kaka does not promise to release those desktop-owned keys while idle.
 
 The compositor can include its tray menu in captured pixels. Keep that menu
 outside the selected region, or use the desktop shortcuts to avoid it. Pause
 ends the current segment; resuming on Wayland may ask for screen sharing again.
-Kiri hides its capture feedback windows during recording.
+Kaka hides its capture feedback windows during recording.
 
 If your GNOME session does not display application tray icons, use these
 commands or keyboard shortcuts. Escape cancels the capture overlay/countdown;
@@ -142,7 +142,7 @@ it is not a desktop-wide Linux recording-stop shortcut.
 ## X11
 
 Settings → Shortcuts manages four launch actions that remain registered while
-Kiri runs: Screenshot (`Ctrl+Shift+A`), Record (`Ctrl+Alt+Shift+R`), Recognize Text
+Kaka runs: Screenshot (`Ctrl+Shift+A`), Record (`Ctrl+Alt+Shift+R`), Recognize Text
 (`Ctrl+Alt+Shift+O`), and Show main window (`Ctrl+Alt+Shift+L`). Two additional
 bindings control an ongoing recording: Pause/Resume (`Ctrl+Alt+Shift+P`) and Stop
 and Save (`Ctrl+Alt+Shift+S`). Those two are registered only during recording,
@@ -152,7 +152,7 @@ not reserve keys while idle, selecting a region, or counting down.
 Every action can be changed or disabled independently; see the
 [shortcut table](usage.md#keyboard-shortcuts). A conflicting replacement preserves
 the previous binding. If a recording binding is unavailable when recording begins,
-Kiri reports the problem and continues recording; tray actions and commands remain
+Kaka reports the problem and continues recording; tray actions and commands remain
 available. The Capture button also remains available when a launch binding fails.
 X11 capture requests managed fullscreen on the captured monitor before showing
 the selection canvas. Panels and docks keep their normal reserved workarea;
@@ -182,8 +182,8 @@ cover MP4/GIF encoding and merging. Check the candidate's reports for results.
 | Click highlights | Unavailable | No click ripple |
 | Updates | Manual replacement `.deb` | No Linux in-app installation or signed updater feed |
 
-GTK retains clipboard ownership after capture closes while Kiri is running.
-Whether clipboard content survives quitting Kiri depends on the desktop's
+GTK retains clipboard ownership after capture closes while Kaka is running.
+Whether clipboard content survives quitting Kaka depends on the desktop's
 clipboard manager. Screenshot annotations and OCR source images stay local;
 the shared [privacy policy](privacy/en.md) also applies on Linux.
 
@@ -255,8 +255,8 @@ package. To build a candidate without desktop permission dialogs, choose the
 pull request. The label adds Linux packaging to its ordinary required checks;
 adding/removing it and subsequent source pushes recompute the plan. This lane
 builds, installs, and inspects the `.deb` on Ubuntu 24.04 and uploads
-`kiri-linux-deb` with the actual checkout SHA and package checksum in
-`provenance.json`. It does not launch Kiri, run the X11 desktop harness, request
+`kaka-linux-deb` with the actual checkout SHA and package checksum in
+`provenance.json`. It does not launch Kaka, run the X11 desktop harness, request
 Portal permissions, or change GNOME settings. A green package-only run is not
 desktop acceptance. PR builds use GitHub's merge checkout; compare its recorded
 source to the intended branch before testing the artifact.
@@ -273,14 +273,14 @@ on Linux after installing a candidate:
 sudo apt install xvfb openbox xdotool xclip x11-utils dbus-x11 python3-tk python3-pil \
   python3-gi python3-pyatspi at-spi2-core \
   gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0
-bash scripts/qa/linux-native.sh /usr/bin/kiri
+bash scripts/qa/linux-native.sh /usr/bin/kaka
 ```
 
 The script creates a new Xvfb display, DBus session, and disposable HOME/XDG
 directories. Its WebKit renderer uses software rendering without compositing
 for the virtual display; this does not exercise a physical GPU. A separate
 normal X11 test window displays public text and gray
-shapes. Kiri captures it with its shipping backend, then the script compares
+shapes. Kaka captures it with its shipping backend, then the script compares
 the selected preview, saved and clipboard pixels, recognizes text through the OCR UI, and
 checks restart persistence. The X11 script uses the native Show main window,
 Recognize Text, and Record shortcuts; recording still starts explicitly in the
@@ -298,10 +298,10 @@ The dock exists only inside the disposable QA desktop.
 `linux-native-review/report.json`, media, images, and logs are the evidence;
 a configured workflow alone is not a passing result.
 
-A separate GNOME Wayland CI job downloads the same run's `kiri-linux-deb`
+A separate GNOME Wayland CI job downloads the same run's `kaka-linux-deb`
 artifact once it is available, including when the X11 desktop check fails.
 Both desktop checks must pass. It installs the package on Ubuntu
-24.04 and runs `bash scripts/qa/linux-wayland.sh /usr/bin/kiri`. The additional
+24.04 and runs `bash scripts/qa/linux-wayland.sh /usr/bin/kaka`. The additional
 GNOME test dependencies are listed at the top of that script. Each consent
 scenario uses a fresh HOME/XDG profile, DBus session, and headless GNOME 46
 desktop with one virtual monitor and software rendering. The four jobs apply
@@ -312,10 +312,10 @@ stays 1280×800 while its physical pixel dimensions change.
 The harness operates the real portal dialogs, checks screenshot denial,
 approval, cancellation, and repeat capture, and compares preview and saved
 pixels. A separate focused Wayland application receives the PNG clipboard and
-the text recognized through Kiri's local OCR UI. Recording starts through the
+the text recognized through Kaka's local OCR UI. Recording starts through the
 GUI, requests ScreenCast consent, pauses, requests consent again on resume,
 and stops through the public desktop commands. The complete MP4 is decoded to
-check dimensions, timing, scene order, and the absence of paused frames or Kiri
+check dimensions, timing, scene order, and the absence of paused frames or Kaka
 controls. Another scenario denies ScreenCast and retries in the same process.
 
 The `linux-wayland-review-scale-*` artifacts retain package identity, reports,
@@ -325,7 +325,7 @@ They do not establish physical-display, hardware-graphics, or IME acceptance.
 
 To iterate on desktop QA without rebuilding the app, dispatch the `build`
 workflow with `linux_candidate_run_id` set to an earlier build run that produced
-a successful `kiri-linux-deb` artifact. For example, replace `RUN_ID` below
+a successful `kaka-linux-deb` artifact. For example, replace `RUN_ID` below
 with that run's numeric ID; use a different `--ref` to test another QA branch:
 
 ```bash
@@ -352,7 +352,7 @@ not a rebuild. Normal push and pull-request workflows still run all checks.
 For GNOME acceptance, verify screenshot approval, denial, cancellation, and
 repeat capture; region move/resize, annotation and IME; clipboard paste into
 another application; English/Chinese/Japanese local OCR; and recording consent,
-pause/resume/stop, GIF conversion, timing, and absence of Kiri controls. Test the
+pause/resume/stop, GIF conversion, timing, and absence of Kaka controls. Test the
 multi-display rejection explicitly. Use a separate test user and public test
 content; never point QA at an existing capture library. Record outcomes before
 marking those gates complete in the [roadmap](roadmap.md).
@@ -398,7 +398,7 @@ Portal keyboard/permission acceptance.
 
 The recording options offer system sound, microphone, both mixed into one AAC
 track, or no audio. GIF is always silent; choosing GIF does not clear the saved
-MP4 audio choices. Kiri does not open audio devices when both options are off.
+MP4 audio choices. Kaka does not open audio devices when both options are off.
 
 Linux needs a running local PulseAudio-compatible audio service (PulseAudio or
 PipeWire-Pulse), the `libpulse0` client library, and the AAC encoder in
@@ -435,7 +435,7 @@ The FIFO monitor regression has a separate harness,
 `bash scripts/qa/linux-audio-fifo.sh`. It creates a private 48 kHz stereo s16le
 `fifo_output`, verifies generated 440 Hz playback, then checks system-only AAC,
 pause/resume merging and a silent control. To exercise the installed app on an
-isolated X11 desktop, run `bash scripts/qa/linux-audio-fifo.sh /usr/bin/kiri`.
+isolated X11 desktop, run `bash scripts/qa/linux-audio-fifo.sh /usr/bin/kaka`.
 Neither mode opens a physical microphone. See the
 [issue #101 investigation](qa/linux-fifo-system-audio.md) for the timing evidence
 and acceptance boundaries.

@@ -129,3 +129,26 @@ test("Windows resident WebViews are dispatched outside IPC and event callbacks",
     assert.match(wrapper, /spawn_blocking/, `${name} must not wait for thumbnail or disk work on the UI thread`);
   }
 });
+
+test("macOS capture overlays receive the first mouse event without taking focus", () => {
+  const commands = readFileSync(join(rustRoot, "commands.rs"), "utf8");
+  const resident = commands.match(
+    /fn prepare_resident_overlay\([\s\S]*?(?=\nfn create_overlay_window)/,
+  )?.[0];
+  const fallback = commands.match(
+    /fn create_overlay_window\([\s\S]*?(?=\n#\[tauri::command\])/,
+  )?.[0];
+
+  assert.ok(resident, "prepare_resident_overlay must remain present");
+  assert.ok(fallback, "create_overlay_window must remain present");
+  assert.match(
+    resident,
+    /\.accept_first_mouse\(true\)/,
+    "the resident overlay must deliver its first drag while its app is inactive",
+  );
+  assert.match(
+    fallback,
+    /\.accept_first_mouse\(true\)/,
+    "the capture overlay fallback must preserve the same first-drag behavior",
+  );
+});

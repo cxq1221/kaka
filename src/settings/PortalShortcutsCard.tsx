@@ -14,9 +14,9 @@ const STATUS_TEXT: Record<PortalShortcutsDto["status"], string> = {
   closed: "The desktop shortcut session ended. Reconnect to use Portal shortcuts again.",
 };
 const COMMANDS = [
-  ["Capture", "kiri --capture"],
-  ["Pause/Resume Recording", "kiri --toggle-recording-pause"],
-  ["Stop Recording", "kiri --stop-recording"],
+  ["Capture", "kaka --capture"],
+  ["Pause/Resume Recording", "kaka --toggle-recording-pause"],
+  ["Stop Recording", "kaka --stop-recording"],
 ];
 
 export function PortalShortcutsCard() {

@@ -501,13 +501,13 @@ def recording_acceptance():
     pause(7)  # Let the ordinary completion preview expire before capture.
     initial_desktop = recording_pattern("initial")
     references = {"initial": initial_desktop.crop(pixel_box(recording_region))}
-    segments_before = recording_files("kiri-recording-*.mp4")
+    segments_before = recording_files("kaka-recording-*.mp4")
     count_before = len(assets())
     begin_recording()
     if args.scenario == "record-deny":
         screen_share(False, "denied-recording", initial_desktop)
-        wait_for("ScreenCast denial reaches Kiri", lambda: "ScreenCast was cancelled or denied" in
-                 (output / "kiri.log").read_text(errors="replace"))
+        wait_for("ScreenCast denial reaches Kaka", lambda: "ScreenCast was cancelled or denied" in
+                 (output / "kaka.log").read_text(errors="replace"))
         pause(2)
         if len(assets()) != count_before or scene_error(
                 screenshot("recording-denied.png"), references["initial"]) > 1.5:
@@ -523,7 +523,7 @@ def recording_acceptance():
     pause_requested = time.monotonic()
     subprocess.run([str(args.executable), "--toggle-recording-pause"], check=True, timeout=10)
     first_segment = wait_for("pause publishes a complete segment", lambda: next(iter(
-        recording_files("kiri-recording-*.mp4") - segments_before), None), timeout=30)
+        recording_files("kaka-recording-*.mp4") - segments_before), None), timeout=30)
     first_duration = discover_video(first_segment, references["initial"].size)
     references["paused"] = recording_pattern("paused").crop(pixel_box(recording_region))
     paused_at = time.monotonic()
@@ -685,16 +685,16 @@ try:
     wait_for("permission dialog closes", lambda: controls("Allow") is None)
 
     if args.scenario == "deny":
-        wait_for("denial reaches Kiri", lambda: "cancelled or denied" in (output / "kiri.log").read_text(errors="replace"))
+        wait_for("denial reaches Kaka", lambda: "cancelled or denied" in (output / "kaka.log").read_text(errors="replace"))
         pause(2)
         if assets() or controls("Screenshot"):
             raise RuntimeError("Denied capture must not save an image or open an overlay")
         if controls("Allow") or controls("Deny"):
             raise RuntimeError("Denied capture opened another permission dialog")
         screenshot("denied-desktop.png")
-        report["checks"].append("real portal denial reaches Kiri without saving or retrying a dialog")
+        report["checks"].append("real portal denial reaches Kaka without saving or retrying a dialog")
     else:
-        wait_for("Kiri screenshot overlay", lambda: controls("Screenshot"))
+        wait_for("Kaka screenshot overlay", lambda: controls("Screenshot"))
         wait_for("capture desktop content is visible", lambda: overlay_frame("capture-overlay.png"))
         key(0xff1b)
         wait_for("Escape closes capture", lambda: controls("Screenshot") is None)

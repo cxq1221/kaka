@@ -20,7 +20,7 @@ output.mkdir(exist_ok=True)
 report = {"success": False, "native": True, "checks": []}
 desktop = Desktop(backend="uia")
 installed_exe = os.environ.get("KIRI_QA_INSTALLED_EXE")
-executable = Path(installed_exe or "src-tauri/target/release/kiri.exe").resolve()
+executable = Path(installed_exe or "src-tauri/target/release/kaka.exe").resolve()
 report["candidate"] = {"path": str(executable), "source": "installed" if installed_exe else "compiled fallback"}
 process = None
 hotkey_id, probe_id = 2122, 2123
@@ -168,7 +168,7 @@ try:
     # directories and restores prior QA data after this run's processes stop.
     with isolated_windows_profile() as environment:
         report["isolated_profile"] = True
-        config = Path(environment["APPDATA"]) / "io.yuxino.kiri"
+        config = Path(environment["APPDATA"]) / "io.cxq1221.kaka"
         (config / "language.json").write_text(json.dumps("en"), encoding="utf-8")
         try:
             held = bool(ctypes.windll.user32.RegisterHotKey(None, hotkey_id, 0x0002 | 0x0004, ord("A")))

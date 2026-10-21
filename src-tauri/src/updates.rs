@@ -3,12 +3,12 @@
 //! Signed update checks, downloads, and installation are handled by Tauri's
 //! official updater plugin. GitHub Releases is only an explicit recovery link.
 
-const RELEASE_PAGE: &str = "https://github.com/yuxino/kiri/releases/latest";
+const RELEASE_PAGE: &str = "https://github.com/cxq1221/kaka/releases/latest";
 
 #[tauri::command]
 pub fn open_project_page(window: tauri::WebviewWindow) -> Result<(), String> {
     if window.label() != "library" { return Err("This command is unavailable from this window.".into()); }
-    open_external_url("https://github.com/yuxino/Kiri")
+    open_external_url("https://github.com/cxq1221/kaka")
         .map_err(|error| { log::warn!("Could not open project page: {error}"); "Couldn't open the project page.".into() })
 }
 
@@ -18,8 +18,12 @@ pub fn is_portable_build() -> bool {
     {
         std::env::current_exe()
             .ok()
-            .and_then(|exe| exe.parent().map(|dir| dir.join("kiri.portable")))
-            .is_some_and(|marker| marker.is_file())
+            .and_then(|exe| {
+                exe.parent().map(|dir| {
+                dir.join("kaka.portable").is_file() || dir.join("kiri.portable").is_file()
+                })
+            })
+            .unwrap_or(false)
     }
     #[cfg(not(windows))]
     {

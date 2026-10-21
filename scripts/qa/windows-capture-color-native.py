@@ -292,7 +292,7 @@ finally:
         if process and process.poll() is None:
             subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
             process.wait(timeout=15)
-    log = Path(os.environ["LOCALAPPDATA"]) / "io.yuxino.kiri/logs/kiri.log"
+    log = Path(os.environ["LOCALAPPDATA"]) / "io.cxq1221.kaka/logs/kaka.log"
     if log.exists():
         (output / "application.log").write_text("\n".join(log.read_text(
             encoding="utf-8", errors="replace").splitlines()[-350:]), encoding="utf-8")

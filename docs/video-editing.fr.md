@@ -1,4 +1,4 @@
-# Monter une vidéo dans Kiri
+# Monter une vidéo dans Kaka
 
 [简体中文](video-editing.zh-CN.md) · [English](video-editing.md) · [繁體中文](video-editing.zh-TW.md) · [日本語](video-editing.ja.md) · [Deutsch](video-editing.de.md) · [한국어](video-editing.ko.md) · **Français**
 
@@ -10,7 +10,7 @@ Un projet modifie une seule vidéo source. Vous pouvez la diviser en clips et le
 
 ## Importer un enregistrement ou un fichier local
 
-Les enregistrements Kiri apparaissent dans la bibliothèque. Pour d’autres fichiers, choisissez « Importer des médias » ou glissez des fichiers PNG, JPEG, WebP, MP4 ou MOV dans la bibliothèque. Les images utilisent l’éditeur d’images ; les vidéos utilisent l’éditeur vidéo.
+Les enregistrements Kaka apparaissent dans la bibliothèque. Pour d’autres fichiers, choisissez « Importer des médias » ou glissez des fichiers PNG, JPEG, WebP, MP4 ou MOV dans la bibliothèque. Les images utilisent l’éditeur d’images ; les vidéos utilisent l’éditeur vidéo.
 
 Les imports conservent les noms d’origine et apparaissent en tête de la bibliothèque une fois les filtres effacés. Les images sont converties en PNG avec leur orientation appliquée ; les vidéos sont copiées. Les fichiers d’origine restent inchangés. Chaque import accepte jusqu’à 32 fichiers. Les images doivent respecter la limite mémoire du décodeur, peser au maximum 32 Mo et ne dépasser 8192 pixels sur aucun côté. Les vidéos sont limitées à 8 Go.
 
@@ -53,6 +53,6 @@ Choisissez « Exporter » en haut à droite. Le menu de qualité montre les dime
 
 Les petites sources ne sont jamais agrandies. La taille du fichier dépend de la source et de la durée du montage. L’export crée une copie dans la bibliothèque, affiche la progression d’encodage et peut être annulé avant l’enregistrement final. L’annulation conserve votre projet et n’ajoute aucune vidéo partielle.
 
-Les exports conservent l’audio synchronisé. Linux normalise l’audio en AAC stéréo à 48 kHz, applique l’orientation vidéo et conserve le rythme des images à fréquence variable et des images maintenues. macOS conserve la hauteur du son lors des changements de vitesse ; Windows la change avec la vitesse. Sous Windows, les effets nécessitent actuellement une source sans métadonnées de rotation. Les enregistrements Kiri remplissent cette condition.
+Les exports conservent l’audio synchronisé. Linux normalise l’audio en AAC stéréo à 48 kHz, applique l’orientation vidéo et conserve le rythme des images à fréquence variable et des images maintenues. macOS conserve la hauteur du son lors des changements de vitesse ; Windows la change avec la vitesse. Sous Windows, les effets nécessitent actuellement une source sans métadonnées de rotation. Les enregistrements Kaka remplissent cette condition.
 
-[Utilisation](usage.fr.md) · [Retour à Kiri](readme/fr.md)
+[Utilisation](usage.fr.md) · [Retour à Kaka](readme/fr.md)

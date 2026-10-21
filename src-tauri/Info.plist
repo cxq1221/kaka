@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>NSInputMonitoringUsageDescription</key>
-	<string>Kiri monitors mouse clicks only when you enable click highlights while recording.</string>
+	<string>Kaka monitors mouse clicks only when you enable click highlights while recording.</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>Kiri needs screen access to capture or record the region you choose.</string>
+	<string>Kaka needs screen access to capture or record the region you choose.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kiri records microphone audio only when you enable the Microphone switch before recording.</string>
+	<string>Kaka records microphone audio only when you enable the Microphone switch before recording.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

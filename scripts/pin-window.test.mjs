@@ -286,7 +286,8 @@ function captureCompletion() {
   const selection = { x: 10, y: 20, width: 100, height: 80 };
   const context = {
     completionLock: new AnnotationInteractionLock(), modeSelectorDragRef: { current: null },
-    setModeSelectorDragging: () => {}, setCompleting: () => {}, selection,
+    setModeSelectorDragging: () => {}, setCompleting: () => {}, selection, imageReady: true,
+    context: null,
     canvasRef: { current: { exportResult: () => { calls.push("export"); return exported.promise; } } },
     api: { confirmCapture: (...args) => { calls.push(args); return confirmed.promise; } },
     getCurrentWindow: () => ({ close: async () => { calls.push("close"); } }),

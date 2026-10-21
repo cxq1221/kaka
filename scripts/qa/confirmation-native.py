@@ -31,7 +31,7 @@ desktop = Desktop(backend="uia")
 process = None
 temporary = None
 ctypes.windll.user32.IsHungAppWindow.argtypes = [ctypes.c_void_p]
-config = Path(os.environ["APPDATA"]) / "io.yuxino.kiri"
+config = Path(os.environ["APPDATA"]) / "io.cxq1221.kaka"
 config.mkdir(parents=True, exist_ok=True)
 settings = [config / name for name in ("library-location.json", "language.json")]
 original = {path: path.read_bytes() if path.exists() else None for path in settings}
@@ -39,7 +39,7 @@ original = {path: path.read_bytes() if path.exists() else None for path in setti
 
 def confirmation_executable():
     installed = os.environ.get("KIRI_QA_INSTALLED_EXE")
-    executable = Path(installed if installed is not None else "src-tauri/target/release/kiri.exe").resolve()
+    executable = Path(installed if installed is not None else "src-tauri/target/release/kaka.exe").resolve()
     if not executable.is_file():
         raise RuntimeError(f"Confirmation QA executable is missing: {executable}")
     source_sha = (os.environ.get("KIRI_LIBRARY_FILES_CANDIDATE_SHA")

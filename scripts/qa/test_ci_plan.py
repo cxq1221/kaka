@@ -260,12 +260,12 @@ class ProvenanceTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.folder = Path(self.tmp.name)
         (self.folder / "kiri.deb").write_bytes(b"public isolated package fixture")
-        self.manifest = {"schema_version": 1, "repository": "yuxino/kiri", "workflow_path": self.module.WORKFLOW,
+        self.manifest = {"schema_version": 1, "repository": "cxq1221/kaka", "workflow_path": self.module.WORKFLOW,
                          "run_id": 101, "run_attempt": 1, "source_sha": "a" * 40,
                          "package": self.module.package_details(self.folder)}
         self.write_manifest()
-        self.run = {"id": 101, "run_attempt": 1, "repository": {"full_name": "yuxino/kiri", "id": 1},
-                    "head_repository": {"full_name": "yuxino/kiri"}, "head_sha": "a" * 40,
+        self.run = {"id": 101, "run_attempt": 1, "repository": {"full_name": "cxq1221/kaka", "id": 1},
+                    "head_repository": {"full_name": "cxq1221/kaka"}, "head_sha": "a" * 40,
                     "path": self.module.WORKFLOW, "status": "completed", "event": "workflow_dispatch", "html_url": "fixture"}
         self.job = {"name": self.module.BUILD_JOB, "id": 202, "html_url": "fixture", "status": "completed",
                     "conclusion": "success", "steps": [{"name": "Build Debian package without updater signing", "conclusion": "success"}]}
@@ -295,7 +295,7 @@ class ProvenanceTests(unittest.TestCase):
                 self.queried_jobs_url = url
             return [self.job] if key == "jobs" else [self.artifact]
         evidence = {}
-        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "yuxino/kiri", "GITHUB_RUN_ID": own_run,
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "cxq1221/kaka", "GITHUB_RUN_ID": own_run,
                                      "GITHUB_EVENT_NAME": event}, clear=True), \
                 patch.object(self.module, "api", side_effect=api), \
                 patch.object(self.module, "api_items", side_effect=items), \
@@ -389,7 +389,7 @@ class ProvenanceTests(unittest.TestCase):
         self.run["head_repository"]["full_name"] = "another/fork"
         with self.assertRaisesRegex(RuntimeError, "fork"):
             self.verify(own_run="102")
-        self.run["head_repository"]["full_name"] = "yuxino/kiri"
+        self.run["head_repository"]["full_name"] = "cxq1221/kaka"
         self.run["status"] = "in_progress"
         with self.assertRaisesRegex(RuntimeError, "has not completed"):
             self.verify(own_run="102")

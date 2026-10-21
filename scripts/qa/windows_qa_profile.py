@@ -146,7 +146,7 @@ def isolated_windows_profile():
                 ("LOCALAPPDATA", "f1b32785-6fba-4fcf-9d55-7b8e7f157091")):
             folder = GUID.from_buffer_copy(uuid.UUID(identifier).bytes_le)
             path = Path(get(folder))
-            paths.extend((path / "kiri", path / "io.yuxino.kiri"))
+            paths.extend((path / "kiri", path / "io.cxq1221.kaka"))
             environment[name] = str(path)
         environment["RUST_LOG"] = "info"
         with isolated_app_directories(paths, root):

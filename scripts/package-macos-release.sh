@@ -22,7 +22,7 @@ for target in aarch64-apple-darwin x86_64-apple-darwin; do
   fi
 done
 
-# Formal releases must keep the certificate already used by published Kiri.
+# Formal releases must keep the certificate already used by published Kaka.
 # Development packaging may select a different local identity independently.
 export KIRI_SIGNING_IDENTITY="${KIRI_SIGNING_IDENTITY:-$(cat "$SCRIPT_DIR/macos-release-identity.txt")}"
 
@@ -42,7 +42,7 @@ updater_key_path="${KIRI_UPDATER_KEY_PATH:-$release_user_home/Library/Applicatio
   exit 1
 }
 updater_key_password="$(security find-generic-password \
-  -s io.yuxino.kiri.updater-signing \
+  -s io.cxq1221.kaka.updater-signing \
   -a "$release_user" \
   -w)"
 [[ -n "$updater_key_password" ]] || {
@@ -67,8 +67,8 @@ config_value() {
 version="$(config_value version)"
 expected_identifier="$(config_value identifier)"
 expected_macos="$(config_value bundle.macOS.minimumSystemVersion)"
-dmg="$PROJECT_DIR/src-tauri/target/universal-apple-darwin/release/bundle/dmg/kiri_${version}_universal.dmg"
-updater_archive="$PROJECT_DIR/src-tauri/target/universal-apple-darwin/release/bundle/macos/kiri.app.tar.gz"
+dmg="$PROJECT_DIR/src-tauri/target/universal-apple-darwin/release/bundle/dmg/kaka_${version}_universal.dmg"
+updater_archive="$PROJECT_DIR/src-tauri/target/universal-apple-darwin/release/bundle/macos/Kaka.app.tar.gz"
 updater_signature="$updater_archive.sig"
 
 [[ -f "$dmg" ]] || {
@@ -83,7 +83,7 @@ updater_signature="$updater_archive.sig"
 hdiutil verify "$dmg" >/dev/null
 codesign --verify --verbose=2 "$dmg"
 
-mount_dir="$(mktemp -d "${TMPDIR:-/tmp}/kiri-release-verify.XXXXXX")"
+mount_dir="$(mktemp -d "${TMPDIR:-/tmp}/kaka-release-verify.XXXXXX")"
 mounted_device=""
 cleanup() {
   if [[ -n "$mounted_device" ]]; then
@@ -102,10 +102,10 @@ mounted_device="$(
   exit 1
 }
 
-app="$mount_dir/kiri.app"
-executable="$app/Contents/MacOS/kiri"
+app="$mount_dir/Kaka.app"
+executable="$app/Contents/MacOS/Kaka"
 [[ -d "$app" && -x "$executable" ]] || {
-  echo "package-macos-release: DMG does not contain kiri.app" >&2
+  echo "package-macos-release: DMG does not contain Kaka.app" >&2
   exit 1
 }
 [[ -L "$mount_dir/Applications" && "$(readlink "$mount_dir/Applications")" == "/Applications" ]] || {
@@ -150,7 +150,7 @@ requirement="$(
 
 # A valid certificate alone does not preserve macOS privacy grants. Keep the
 # public release on the same designated requirement as the installed app.
-installed_app="/Applications/Kiri.app"
+installed_app="/Applications/Kaka.app"
 if [[ -d "$installed_app" ]]; then
   installed_requirement="$(
     codesign --display --requirements - "$installed_app" 2>&1 |
@@ -158,7 +158,7 @@ if [[ -d "$installed_app" ]]; then
   )"
   if [[ -z "$installed_requirement" || "$installed_requirement" != "$requirement" ]]; then
     if [[ "${KIRI_ALLOW_IDENTITY_CHANGE:-0}" != "1" ]]; then
-      echo "package-macos-release: packaged app does not match the installed Kiri signing identity" >&2
+      echo "package-macos-release: packaged app does not match the installed Kaka signing identity" >&2
       echo "package-macos-release: set KIRI_SIGNING_IDENTITY to the installed certificate fingerprint" >&2
       exit 1
     fi

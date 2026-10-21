@@ -23,7 +23,7 @@ test("downloads and installs remain separate signed user actions", () => {
   assert.doesNotMatch(settings, /downloadAndInstall/);
   assert.doesNotMatch(ipc, /check_for_updates|checkForUpdates/);
   assert.doesNotMatch(rust, /api\.github\.com|check_for_updates/);
-  assert.match(rust, /github\.com\/yuxino\/kiri\/releases\/latest/);
+  assert.match(rust, /github\.com\/cxq1221\/kaka\/releases\/latest/);
   assert.match(lib, /tauri_plugin_updater::Builder::new\(\)\.build\(\)/);
   assert.match(lib, /tauri_plugin_process::init\(\)/);
 });
@@ -38,7 +38,7 @@ test("updater configuration is fixed, HTTPS-only, and least-privileged", () => {
   assert.equal(config.bundle.createUpdaterArtifacts, true);
   assert.equal(config.plugins.updater.windows.installMode, "passive");
   assert.deepEqual(config.plugins.updater.endpoints, [
-    "https://github.com/yuxino/kiri/releases/latest/download/latest.json",
+    "https://github.com/cxq1221/kaka/releases/latest/download/latest.json",
   ]);
   assert.match(decodedPublicKey, /^untrusted comment: minisign public key:/);
   assert.equal(decodedPublicKey.includes("PRIVATE KEY"), false);
@@ -67,7 +67,7 @@ test("CI signs updater artifacts without exposing a private key", () => {
   assert.match(release, /uploadUpdaterJson:\s*true/);
   assert.match(release, /uploadUpdaterSignatures:\s*true/);
   assert.match(packager, /security find-generic-password/);
-  assert.match(packager, /kiri\.app\.tar\.gz/);
+  assert.match(packager, /Kaka\.app\.tar\.gz/);
   assert.match(packager, /TAURI_SIGNING_PRIVATE_KEY_PASSWORD/);
 });
 

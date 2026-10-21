@@ -9,7 +9,7 @@ Markdown documentation changes.
 ## Windows
 
 ```sh
-gh workflow run build.yml --repo yuxino/Kiri --ref <qa-ref> \
+gh workflow run build.yml --repo cxq1221/kaka --ref <qa-ref> \
   -f profile=recheck-windows -f windows_native_candidate_run_id=<original-run>
 ```
 
@@ -34,14 +34,14 @@ It waits for
 the complete installer process tree and retains installed-file/hash diagnostics
 on failure. A failed checksum is never waived.
 
-New package runs retain `kiri-windows` (NSIS and portable ZIP) and
+New package runs retain `kaka-windows` (NSIS and portable ZIP) and
 `windows-native-candidate` (compiled executable), including after native QA
 failure. Legacy failed runs can use `countdown-debug-build`; if their original
 portable ZIP was not retained, the unchanged packaging script recreates it from
 the exact candidate executable. The provenance report explicitly distinguishes
 that replay from reuse of the original ZIP. This is not a release promotion.
 
-Each native gate uses fresh Kiri-only directories on a disposable GitHub-hosted
+Each native gate uses fresh Kaka-only directories on a disposable GitHub-hosted
 Windows runner and restores prior CI data afterward. No OS Known Folder
 redirection or global WebView process kill is used. Failed gates do not suppress
 later independent gates, and all gates must pass for the job/quality gate to
@@ -50,7 +50,7 @@ succeed. Evidence is retained in `windows-native-recheck-review`.
 ## Linux X11
 
 ```sh
-gh workflow run build.yml --repo yuxino/Kiri --ref <qa-ref> \
+gh workflow run build.yml --repo cxq1221/kaka --ref <qa-ref> \
   -f profile=recheck-linux-x11 -f linux_candidate_run_id=<original-run>
 ```
 

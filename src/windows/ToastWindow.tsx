@@ -40,15 +40,15 @@ interface UndoState {
   completion: CompletionPreviewPayload;
 }
 
-type ActionName = "open" | "copy" | "pin" | "gif" | "cancel-gif" | "trash" | "undo";
+type ActionName = "open" | "copy" | "share" | "pin" | "gif" | "cancel-gif" | "trash" | "undo";
 
-const COMPLETION_WIDTH = 360;
-const COMPLETION_HEIGHT = 124;
+const COMPLETION_WIDTH = 420;
+const COMPLETION_HEIGHT = 160;
 const UNDO_HEIGHT = 60;
 const ACTION_COOLDOWN_MS = 450;
 const PASSIVE_DISMISS_MS = 1200;
 const UNDO_DISMISS_MS = 3000;
-const COMPLETION_DISMISS_MS = 8000;
+const COMPLETION_DISMISS_MS = 12000;
 
 function booleanParam(params: URLSearchParams, key: string): boolean {
   const value = params.get(key);
@@ -140,6 +140,7 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
   const [pendingAction, setPendingAction] = useState<ActionName | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [copiedNow, setCopiedNow] = useState(false);
+  const [sharedNow, setSharedNow] = useState(false);
   const [gifProgress, setGifProgress] = useState<GifConversionStateDto | null>(null);
 
   const completionRef = useRef(completion);
@@ -158,6 +159,7 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
     setPendingAction(null);
     setActionError(null);
     setCopiedNow(false);
+    setSharedNow(false);
   }, []);
 
   const hideWindow = useCallback(() => {
@@ -431,6 +433,14 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
     });
   };
 
+  const shareScreenshot = () => {
+    if (!assetId || visibleCompletion.kind !== "image") return;
+    void runAction("share", async () => {
+      await api.shareAssetToLanChat(assetId);
+      setSharedNow(true);
+    });
+  };
+
   const createGif = () => {
     if (!assetId) return;
     void runAction("gif", () => api.convertToGif(assetId));
@@ -567,18 +577,28 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
                         : t("Copy File")
                   }
                   pending={pendingAction}
-                  accent
                   onClick={copyAsset}
                 />
                 {visibleCompletion.kind === "image" && (
-                  <ActionButton
-                    action="pin"
-                    icon="photo.on.rectangle"
-                    label={t("Pin")}
-                    title={t("Pin Screenshot on Top")}
-                    pending={pendingAction}
-                    onClick={pinScreenshot}
-                  />
+                  <>
+                    <ActionButton
+                      action="share"
+                      icon={sharedNow ? "checkmark.circle.fill" : "arrow.up.right"}
+                      label={t(sharedNow ? "Sent to LanChat" : "Send to LanChat")}
+                      title={t(sharedNow ? "Sent to LanChat" : "Send to LanChat")}
+                      pending={pendingAction}
+                      accent
+                      onClick={shareScreenshot}
+                    />
+                    <ActionButton
+                      action="pin"
+                      icon="photo.on.rectangle"
+                      label={t("Pin")}
+                      title={t("Pin Screenshot on Top")}
+                      pending={pendingAction}
+                      onClick={pinScreenshot}
+                    />
+                  </>
                 )}
                 {visibleCompletion.kind === "video" && visibleCompletion.gifEligible && (
                   <ActionButton
@@ -815,19 +835,20 @@ function ToastStyles() {
 
       .kiri-completion-actions {
         min-width: 0;
-        display: flex;
-        align-items: center;
-        gap: 5px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
       }
 
       .kiri-completion-action {
         height: 32px;
         min-width: 0;
+        width: 100%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 5px;
-        padding: 0 8px;
+        padding: 0 7px;
         border: 1px solid var(--kiri-surface-border);
         border-radius: 9px;
         background: var(--kiri-group-fill);

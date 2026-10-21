@@ -1,4 +1,4 @@
-# Edit a video in Kiri
+# Edit a video in Kaka
 
 [简体中文](video-editing.zh-CN.md) · **English** · [繁體中文](video-editing.zh-TW.md) · [日本語](video-editing.ja.md) · [Deutsch](video-editing.de.md) · [한국어](video-editing.ko.md) · [Français](video-editing.fr.md)
 
@@ -11,7 +11,7 @@ A project edits one source video. You can cut that video into clips and reorder 
 
 ## Import a recording or local file
 
-Kiri recordings appear in the library. For other files, choose **Import media** or drag PNG, JPEG, WebP, MP4, or MOV files into the library. Imported images open in the image editor; imported videos use the video editor.
+Kaka recordings appear in the library. For other files, choose **Import media** or drag PNG, JPEG, WebP, MP4, or MOV files into the library. Imported images open in the image editor; imported videos use the video editor.
 
 Imports keep the original names and appear at the top of the library after filters are cleared. Images are converted to PNG with their orientation applied; videos are copied. The original files remain unchanged. Each import accepts up to 32 files. Images must fit the decoder memory limit, be no larger than 32 MB, and have no edge above 8192 pixels; videos are limited to 8 GB.
 
@@ -54,6 +54,6 @@ Choose **Export** in the upper-right toolbar. The quality menu shows the actual 
 
 Small sources are never enlarged. File size depends on the source and edited duration. Export creates a new library copy, shows encoding progress, and can be cancelled before the final library save begins. Cancelling keeps your project and adds no partial video to the library.
 
-Exports retain synchronized audio. Linux normalizes audio to 48 kHz stereo AAC, applies video orientation and preserves variable-rate and held-frame presentation timing. macOS preserves audio pitch when clip speed changes; Windows changes the pitch along with the speed. On Windows, video effects currently require a source without rotation metadata. Kiri recordings meet that requirement.
+Exports retain synchronized audio. Linux normalizes audio to 48 kHz stereo AAC, applies video orientation and preserves variable-rate and held-frame presentation timing. macOS preserves audio pitch when clip speed changes; Windows changes the pitch along with the speed. On Windows, video effects currently require a source without rotation metadata. Kaka recordings meet that requirement.
 
-[Back to Kiri](readme/en.md)
+[Back to Kaka](readme/en.md)

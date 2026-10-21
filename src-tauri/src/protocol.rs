@@ -1,4 +1,4 @@
-//! `kiri://` custom protocol serving in-memory capture images and library
+//! `kaka://` custom protocol serving in-memory capture images and library
 //! asset files to the webview (never exposing arbitrary disk paths).
 
 use std::collections::{HashMap, VecDeque};
@@ -114,17 +114,44 @@ impl ThumbnailCache {
 struct FrozenCapture {
     capture_id: uuid::Uuid,
     token: String,
-    png: Arc<[u8]>,
+    /// `None` reserves the opaque token while the display frame is encoded on
+    /// a worker. Requests remain rejected until the exact capture publishes.
+    png: Option<Arc<[u8]>>,
 }
 
 pub fn set_frozen_png(store: &ProtocolStore, capture_id: uuid::Uuid, png: Arc<[u8]>) -> String {
+    let token = reserve_frozen_capture(store, capture_id);
+    let published = publish_frozen_png(store, capture_id, png);
+    debug_assert!(published, "a just-reserved capture must accept its image");
+    token
+}
+
+/// Reserves the per-capture image URL before slow PNG encoding completes.
+pub fn reserve_frozen_capture(store: &ProtocolStore, capture_id: uuid::Uuid) -> String {
     let token = uuid::Uuid::new_v4().simple().to_string();
     *store.frozen_capture.lock().unwrap() = Some(FrozenCapture {
         capture_id,
         token: token.clone(),
-        png,
+        png: None,
     });
     token
+}
+
+/// Publishes bytes only to the session that still owns the reserved token.
+pub fn publish_frozen_png(
+    store: &ProtocolStore,
+    capture_id: uuid::Uuid,
+    png: Arc<[u8]>,
+) -> bool {
+    let mut frozen_capture = store.frozen_capture.lock().unwrap();
+    let Some(capture) = frozen_capture.as_mut() else {
+        return false;
+    };
+    if capture.capture_id != capture_id {
+        return false;
+    }
+    capture.png = Some(png);
+    true
 }
 
 pub fn with_thumbnail_invalidation<T, E>(
@@ -331,7 +358,7 @@ pub fn handle(app: &tauri::AppHandle, request: &Request<Vec<u8>>) -> Response<Ve
         return not_found();
     }
 
-    // Full media files for the in-app viewer: kiri://media/<id>
+    // Full media files for the in-app viewer: kaka://media/<id>
     // Serves the raw asset bytes with a media Content-Type so <img>/<video>
     // can play it. HTTP Range is honored so video seeking works.
     if route == "media" {
@@ -421,8 +448,9 @@ fn frozen_png_for_path(store: &ProtocolStore, path: &str) -> Option<Vec<u8>> {
     }
     let capture = store.frozen_capture.lock().unwrap();
     let capture = capture.as_ref()?;
+    let png = capture.png.as_ref()?;
     constant_time_eq(requested_token.as_bytes(), capture.token.as_bytes())
-        .then(|| capture.png.as_ref().to_vec())
+        .then(|| png.as_ref().to_vec())
 }
 
 fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
@@ -619,7 +647,7 @@ fn respond(bytes: Vec<u8>, content_type: &str) -> Response<Vec<u8>> {
         .status(StatusCode::OK)
         .header("Content-Type", content_type)
         // Required for fetch() from the tauri://localhost page to the
-        // kiri:// custom scheme (canvas-safe blob loading).
+        // kaka:// custom scheme (canvas-safe blob loading).
         .header("Access-Control-Allow-Origin", "*")
         .header("Cache-Control", "no-store")
         .body(bytes)
@@ -739,7 +767,7 @@ mod tests {
                 path: path.to_string(),
             };
             assert_eq!(
-                parsed_route(&format!("kiri://{route}/{path}")),
+                parsed_route(&format!("kaka://{route}/{path}")),
                 Some(expected.clone()),
             );
             let joined_route = format!("{route}/{path}");
@@ -748,7 +776,7 @@ mod tests {
                 percent_encoding::NON_ALPHANUMERIC,
             );
             assert_eq!(
-                parsed_route(&format!("kiri://localhost/{encoded}")),
+                parsed_route(&format!("kaka://localhost/{encoded}")),
                 Some(expected),
             );
         }
@@ -759,7 +787,7 @@ mod tests {
         let revision = "a".repeat(64);
         let request = Request::builder()
             .uri(format!(
-                "kiri://localhost/annotation%2Dsource%2F00000000%2D0000%2D4000%2D8000%2D000000000000?revision={revision}"
+                "kaka://localhost/annotation%2Dsource%2F00000000%2D0000%2D4000%2D8000%2D000000000000?revision={revision}"
             ))
             .body(Vec::<u8>::new())
             .unwrap();
@@ -949,6 +977,31 @@ mod tests {
     }
 
     #[test]
+    fn reserved_frozen_capture_stays_unavailable_until_its_encoder_publishes() {
+        let store = ProtocolStore::new();
+        let capture_id = uuid::Uuid::new_v4();
+        let token = reserve_frozen_capture(&store, capture_id);
+        let path = format!("frozen/{token}.png");
+
+        assert!(frozen_png_for_path(&store, &path).is_none());
+        assert!(!publish_frozen_png(
+            &store,
+            uuid::Uuid::new_v4(),
+            vec![9].into()
+        ));
+        assert!(frozen_png_for_path(&store, &path).is_none());
+        assert!(publish_frozen_png(
+            &store,
+            capture_id,
+            vec![4, 5, 6].into()
+        ));
+        assert_eq!(
+            frozen_png_for_path(&store, &path),
+            Some(vec![4, 5, 6])
+        );
+    }
+
+    #[test]
     fn parses_bounded_and_open_media_ranges() {
         assert_eq!(parse_media_range(None, 2_000_000), MediaRangeDecision::Full);
         assert_eq!(
@@ -1048,7 +1101,7 @@ mod tests {
         std::fs::rename(&original, &renamed).unwrap();
         assert!(!original.exists());
         let request = Request::builder()
-            .uri("kiri://media/test")
+            .uri("kaka://media/test")
             .header("Range", "bytes=2-5")
             .body(Vec::new())
             .unwrap();
@@ -1066,7 +1119,7 @@ mod tests {
         assert!(!renamed.exists());
         let head = Request::builder()
             .method(Method::HEAD)
-            .uri("kiri://media/test")
+            .uri("kaka://media/test")
             .body(Vec::new())
             .unwrap();
         let response = respond_media(&head, file.try_clone().unwrap(), "video/mp4").unwrap();
@@ -1074,7 +1127,7 @@ mod tests {
         assert_eq!(response.headers().get("Content-Length").unwrap(), "10");
         assert!(response.body().is_empty());
         let request = Request::builder()
-            .uri("kiri://media/test")
+            .uri("kaka://media/test")
             .header("Range", "bytes=6-9")
             .body(Vec::new())
             .unwrap();
@@ -1093,7 +1146,7 @@ mod tests {
         let data = vec![7; MEDIA_RANGE_MAX_BYTES as usize + 128];
         std::fs::write(file.path(), &data).unwrap();
         let request = Request::builder()
-            .uri("kiri://media/test")
+            .uri("kaka://media/test")
             .header("Range", "bytes=0-")
             .body(Vec::new())
             .unwrap();
@@ -1117,7 +1170,7 @@ mod tests {
             .collect();
         std::fs::write(file.path(), &data).unwrap();
         let request = Request::builder()
-            .uri("kiri://media/test")
+            .uri("kaka://media/test")
             .header("Range", format!("bytes=-{}", MEDIA_RANGE_MAX_BYTES + 128))
             .body(Vec::new())
             .unwrap();
@@ -1146,7 +1199,7 @@ mod tests {
                 Some("bytes=0-1,4-5"),
                 Some("bytes=5-4"),
             ] {
-                let mut request = Request::builder().uri("kiri://media/test");
+                let mut request = Request::builder().uri("kaka://media/test");
                 if let Some(range) = range {
                     request = request.header("Range", range);
                 }
@@ -1177,7 +1230,7 @@ mod tests {
             for method in [Method::GET, Method::HEAD] {
                 let request = Request::builder()
                     .method(method.clone())
-                    .uri("kiri://media/test")
+                    .uri("kaka://media/test")
                     .header("Range", "bytes=2-5")
                     .body(Vec::new())
                     .unwrap();
@@ -1200,7 +1253,7 @@ mod tests {
         let data = b"GIF89a-small-fixture";
         std::fs::write(file.path(), data).unwrap();
         let request = Request::builder()
-            .uri("kiri://media/test")
+            .uri("kaka://media/test")
             .body(Vec::new())
             .unwrap();
 
@@ -1217,7 +1270,7 @@ mod tests {
         std::fs::write(file.path(), b"1234").unwrap();
         let request = Request::builder()
             .method(Method::HEAD)
-            .uri("kiri://media/test")
+            .uri("kaka://media/test")
             .body(Vec::new())
             .unwrap();
 
@@ -1235,7 +1288,7 @@ mod tests {
         let file = tempfile::NamedTempFile::new().unwrap();
         std::fs::write(file.path(), b"1234").unwrap();
         let request = Request::builder()
-            .uri("kiri://media/test")
+            .uri("kaka://media/test")
             .header("Range", "bytes=4-")
             .body(Vec::new())
             .unwrap();

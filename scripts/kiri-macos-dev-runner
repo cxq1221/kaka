@@ -61,7 +61,7 @@ identity="$(
     "${KIRI_DEV_SIGNING_IDENTITY:-${KIRI_SIGNING_IDENTITY:-}}"
 )"
 
-signing_identifier="io.yuxino.kiri.dev"
+signing_identifier="io.cxq1221.kaka.dev"
 /usr/bin/codesign \
   --force \
   --sign "$identity" \

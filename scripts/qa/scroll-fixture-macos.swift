@@ -3,7 +3,7 @@
 // Build with: swiftc -target arm64-apple-macos14.0 -framework AppKit
 //   -module-cache-path <temporary-cache>
 //   scripts/qa/scroll-fixture-macos.swift -o <bundle>/Contents/MacOS/NativeScrollFixture
-// Package as an LSUIElement app with bundle ID io.yuxino.kiri.scroll-fixture.
+// Package as an LSUIElement app with bundle ID io.cxq1221.kaka.scroll-fixture.
 // Select only the scroll view below the fixed header, excluding its scrollbar.
 
 import AppKit

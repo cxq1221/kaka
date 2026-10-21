@@ -30,21 +30,36 @@ async function overlay(t, { windowRects = [floating, normal, background], scale 
   const errors = [];
   const scrollStarts = [];
   let cancelled = 0;
-  const context = { captureId: "capture-1", displayWidth: width, displayHeight: height, scale,
+  const context = { captureId: "capture-1",
+    captureToken: "0123456789abcdef0123456789abcdef", imageReady: true,
+    windowRectsReady: true, residentOverlay: false,
+    displayWidth: width, displayHeight: height, scale,
     pixelWidth: Math.round(width * scale), pixelHeight: Math.round(height * scale),
     windowRects, sourceApplication: "selection-test" };
   const harness = createLibraryHarness({}, source, {
     search: "?window=overlay&captureToken=0123456789abcdef0123456789abcdef",
     globals: {
       fetch: async () => ({ ok: true, blob: async () => new Blob(["test frozen capture"]) }),
-      Image: class { src = ""; },
+      Image: class {
+        _src = "";
+        onload = null;
+        onerror = null;
+        get src() { return this._src; }
+        set src(value) { this._src = value; queueMicrotask(() => this.onload?.()); }
+      },
       ResizeObserver: class { observe() {} disconnect() {} },
     },
     modules: {
       "@tauri-apps/api/core": { invoke: async (_command, value) => { errors.push(value); } },
       "@tauri-apps/api/window": { getCurrentWindow: () => ({ close: async () => { cancelled++; } }) },
-      "../lib/ipc": { DEFAULT_RECORDING_OPTIONS: recordingOptions, api: {
+      "../lib/ipc": { DEFAULT_RECORDING_OPTIONS: recordingOptions,
+        onCaptureStarted: async () => () => {},
+        onCaptureImageReady: async () => () => {},
+        onCaptureWindowRects: async () => () => {},
+        onCaptureEnded: async () => () => {},
+        api: {
         startCapture: async () => context,
+        getCaptureState: async () => context,
         getRecordingOptions: async () => recordingOptions,
         micSupported: async () => true,
         platformCapabilities: async () => ({ scrollingCapture, recording: true, microphone: true, systemAudio: true, clickHighlights: true }),
@@ -61,7 +76,7 @@ async function overlay(t, { windowRects = [floating, normal, background], scale 
       "./RecordingMicrophoneSelect": { __esModule: true, default: "microphone-select" },
       "../qr/QrOverlay": { QrOverlay: "qr-overlay" },
       "../ocr/RemoteOcrConsent": { RemoteOcrConsent: "ocr-consent" },
-      "../lib/kiri-resource-url.js": { kiriResourceUrl: () => "kiri://capture/frozen/test.png" },
+      "../lib/kiri-resource-url.js": { kiriResourceUrl: () => "kaka://capture/frozen/test.png" },
       "./toolbar-layout.js": toolbarLayout,
       "./CaptureSizeControls": { CaptureSizeControls: "capture-size-controls" },
       "./capture-size.js": captureSize,

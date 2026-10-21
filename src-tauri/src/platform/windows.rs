@@ -105,7 +105,7 @@ pub fn hide_window_for_capture(window: &tauri::WebviewWindow) -> Result<()> {
             let _ = ShowWindow(hwnd, SW_HIDE);
         }
         if unsafe { IsWindowVisible(hwnd).as_bool() } {
-            bail!("Kiri's window could not be hidden before capture.");
+            bail!("Kaka's window could not be hidden before capture.");
         }
     }
     unsafe { DwmFlush()? };
@@ -1098,12 +1098,12 @@ mod tests {
     fn shell_paths_preserve_names_and_remove_canonical_prefixes() {
         for (input, expected) in [
             (
-                r"C:\素材 test, 🐈\Kiri Library",
-                r"C:\素材 test, 🐈\Kiri Library",
+                r"C:\素材 test, 🐈\Kaka Library",
+                r"C:\素材 test, 🐈\Kaka Library",
             ),
             (
-                r"\\?\C:\素材 test, 🐈\Kiri Library\Assets\说明.png",
-                r"C:\素材 test, 🐈\Kiri Library\Assets\说明.png",
+                r"\\?\C:\素材 test, 🐈\Kaka Library\Assets\说明.png",
+                r"C:\素材 test, 🐈\Kaka Library\Assets\说明.png",
             ),
             (
                 r"\\?\UNC\server\share\素材 test, 🐈\说明.png",

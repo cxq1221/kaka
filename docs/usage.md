@@ -1,4 +1,4 @@
-# Using Kiri
+# Using Kaka
 
 [简体中文](usage.zh-CN.md) · **English** · [繁體中文](usage.zh-TW.md) · [日本語](usage.ja.md) · [Deutsch](usage.de.md) · [한국어](usage.ko.md) · [Français](usage.fr.md)
 
@@ -6,13 +6,13 @@
 
 ## Install and update
 
-[Download the latest release →](https://github.com/yuxino/kiri/releases/latest)
+[Download the latest release →](https://github.com/cxq1221/kaka/releases/latest)
 
 | Platform | Install |
 | --- | --- |
-| macOS 14+ · Apple silicon & Intel | Open the Universal `.dmg` and drag Kiri to Applications. |
-| Windows 11 · x64 | Run the `.exe` installer, or extract the Portable ZIP and run `kiri.exe`. |
-| Ubuntu 24.04 · x64 · GNOME / X11 | Download the `.deb`, then run `sudo apt install ./kiri_VERSION_amd64.deb` with its actual filename. |
+| macOS 14+ · Apple silicon & Intel | Open the Universal `.dmg` and drag Kaka to Applications. |
+| Windows 11 · x64 | Run the `.exe` installer, or extract the Portable ZIP and run `kaka.exe`. |
+| Ubuntu 24.04 · x64 · GNOME / X11 | Download the `.deb`, then run `sudo apt install ./kaka_VERSION_amd64.deb` with its actual filename. |
 
 macOS needs Screen & System Audio Recording permission; click highlights also need Input Monitoring, and microphone recording requires macOS 15+. The app is not Apple-notarized: if blocked, use System Settings → Privacy & Security → Open Anyway. Windows packages are not Authenticode-signed, so SmartScreen may warn.
 
@@ -31,13 +31,13 @@ recoverable deletion; you do not need to empty Trash to delete selected captures
 
 ## Language
 
-Settings → General → Language offers English, 简体中文, 繁體中文, 日本語, Deutsch, 한국어, and Français. Your choice applies to every open Kiri window and survives relaunches. On first launch, Kiri follows the system language. UI language choices do not change installed Linux OCR language data.
+Settings → General → Language offers English, 简体中文, 繁體中文, 日本語, Deutsch, 한국어, and Français. Your choice applies to every open Kaka window and survives relaunches. On first launch, Kaka follows the system language. UI language choices do not change installed Linux OCR language data.
 
 ## Capture
 
-Press ⇧⌘A on macOS or Shift+Ctrl+A on Windows / Linux X11, then select a window or drag a region. On Wayland, use the Capture button or bind `kiri --capture` in desktop settings. Supporting desktops also offer Settings → Shortcuts → Wayland Desktop Shortcuts for desktop-approved Capture, Pause/Resume, and Stop bindings. Ubuntu 24.04 / GNOME 46 retains the command fallback.
+Press ⇧⌘A on macOS or Shift+Ctrl+A on Windows / Linux X11, then select a window or drag a region. On Wayland, use the Capture button or bind `kaka --capture` in desktop settings. Supporting desktops also offer Settings → Shortcuts → Wayland Desktop Shortcuts for desktop-approved Capture, Pause/Resume, and Stop bindings. Ubuntu 24.04 / GNOME 46 retains the command fallback.
 
-On macOS, Windows and Linux, the Kiri executable also accepts `--capture`, `--record`, `--ocr` and `--library` to open screenshot selection, recording selection, text recognition and the main window, whether Kiri is already running or starting for the first time.
+On macOS, Windows and Linux, the Kaka executable also accepts `--capture`, `--record`, `--ocr` and `--library` to open screenshot selection, recording selection, text recognition and the main window, whether Kaka is already running or starting for the first time.
 
 Choose Screenshot, Record, or OCR. The screenshot toolbar also offers Recognize QR Codes. Enter confirms a screenshot; Esc cancels capture. Screenshots go to your clipboard and local library.
 
@@ -54,7 +54,7 @@ the change succeeds.
 
 On macOS, ordinary shortcuts do not need Input Monitoring permission. Media-key
 shortcuts use an intercepting event tap and require existing Accessibility
-authorization. If it is missing, Kiri reports an error and keeps the old binding;
+authorization. If it is missing, Kaka reports an error and keeps the old binding;
 it does not request authorization in a popup or change your permissions.
 
 Esc cancels. Tab or Shift+Tab leaves recording; with a pending key, Tab can move to
@@ -63,7 +63,7 @@ with Control, Alt/Option, or Command/Windows. Pure modifier presses do not set a
 binding. Clear removes a binding, and changed or cleared rows offer Restore
 Default directly.
 
-The four **Launch actions** stay available while Kiri is running:
+The four **Launch actions** stay available while Kaka is running:
 
 | Action | macOS | Windows / Linux X11 |
 | --- | --- | --- |
@@ -80,10 +80,10 @@ including while paused:
 | Pause/Resume Recording | ⌥⇧⌘P | Alt+Shift+Ctrl+P |
 | Stop and Save Recording | ⌥⇧⌘S | Alt+Shift+Ctrl+S |
 
-Kiri registers these two native bindings when recording begins and releases them
-when stopping begins or recording fails. They do not reserve keys while Kiri is
+Kaka registers these two native bindings when recording begins and releases them
+when stopping begins or recording fails. They do not reserve keys while Kaka is
 idle, choosing a region, or counting down. If a recording binding is unavailable,
-recording continues and Kiri reports the problem; use the floating controls on
+recording continues and Kaka reports the problem; use the floating controls on
 macOS/Windows or the tray menu to pause or stop, then choose another combination
 in Settings → Shortcuts.
 
@@ -94,12 +94,12 @@ that new action starts unassigned. A duplicate or unavailable replacement leaves
 the previous binding intact. Registration cannot detect every shortcut used inside
 other applications; choose a different combination if one interrupts your workflow.
 
-Wayland keys remain desktop-managed. Assign `kiri --capture`, `kiri --record`,
-`kiri --ocr`, or `kiri --library` in your desktop keyboard settings. For recording
-controls, bind `kiri --toggle-recording-pause` and `kiri --stop-recording`. The
+Wayland keys remain desktop-managed. Assign `kaka --capture`, `kaka --record`,
+`kaka --ocr`, or `kaka --library` in your desktop keyboard settings. For recording
+controls, bind `kaka --toggle-recording-pause` and `kaka --stop-recording`. The
 optional Portal setup retains its Capture, Pause/Resume, and Stop actions.
 These recording commands only act on an ongoing recording, but the desktop may
-keep their keys reserved while Kiri is idle; Kiri cannot release desktop-owned
+keep their keys reserved while Kaka is idle; Kaka cannot release desktop-owned
 bindings between recordings.
 
 Before choosing an annotation tool, click the screenshot toolbar's sliders button to show editable width and height labels on the selection edges. Values use output pixels, including on Retina displays. Enter or leaving a field applies its value; Esc discards the current input, and a second Esc cancels capture. Arrow keys adjust by one pixel, or ten with Shift. Click the sliders again to hide the labels. Once annotation starts, the sliders retain their appearance controls.
@@ -108,11 +108,11 @@ On macOS, if you change display layout, resolution, or scale after selecting a r
 
 While typing an annotation, Ctrl/Cmd+Z undoes text and Shift+Enter adds a line. Esc leaves the text edit first; a second Esc cancels capture. Closing an edited saved image offers Save, Discard, or Keep editing when changes are unsaved.
 
-On GNOME Wayland, if the first capture shows no permission dialog, open Kiri's Library and choose Request Access in the error banner. Allow screenshot access in GNOME's dialog, then retry Capture. Kiri discards the authorization image. See the [Linux guide](linux.md).
+On GNOME Wayland, if the first capture shows no permission dialog, open Kaka's Library and choose Request Access in the error banner. Allow screenshot access in GNOME's dialog, then retry Capture. Kaka discards the authorization image. See the [Linux guide](linux.md).
 
 Recording preparation offers MP4 / GIF, Start, and four inline icons: system audio, microphone, pointer, and click highlights. Start always runs a three-second countdown; GIF recordings are silent. The panel adapts to the selection and display edges.
 
-Use the small arrow beside the microphone to select an actual input device without changing the system default. If the selected device is unavailable or disconnects, Kiri reports an error instead of silently switching microphones.
+Use the small arrow beside the microphone to select an actual input device without changing the system default. If the selected device is unavailable or disconnects, Kaka reports an error instead of silently switching microphones.
 
 On macOS and Windows, recording controls follow the selection and adapt near display edges without taking keyboard focus. Dragging moves the current panel; the next capture positions it from the new selection again. Pause keeps the recorded elapsed time, and resume continues it. Use the configured recording shortcuts, the control buttons, or the tray menu. There are no built-in bare Space/Esc recording commands; a bare key you explicitly confirm as a recording shortcut follows that binding. A button you focus explicitly still supports normal Space/Enter activation. Esc continues to cancel capture and the countdown. Older Windows versions may still show the system’s full-display capture border. Linux uses native X11 shortcuts, desktop-managed Wayland shortcuts, tray actions, or commands.
 
@@ -120,15 +120,15 @@ On macOS and Windows, recording controls follow the selection and adapt near dis
 
 Select the scrolling content, then choose **Scrolling Screenshot** in the screenshot toolbar before adding annotations. Start anywhere and scroll naturally up or down; captured content is not added twice when you return to it. Pausing to read does not end capture. Choose **Done** to copy and save, or **Esc** to cancel before saving starts. Enter remains available to the original application.
 
-While scrolling capture is active, `kiri --finish-scroll-capture` performs the same complete-save check as **Done**; it never falls back to saving a partial result. `kiri --cancel-scroll-capture` cancels before saving begins. Both commands control only the current session and do not start a new capture.
+While scrolling capture is active, `kaka --finish-scroll-capture` performs the same complete-save check as **Done**; it never falls back to saving a partial result. `kaka --cancel-scroll-capture` cancels before saving begins. Both commands control only the current session and do not start a new capture.
 
 The selected area stays visibly marked during capture. The area outside it is dimmed, while clicks, wheel input and trackpad gestures pass through to the original application. This guide does not change the capture area or appear in the saved image.
 
 The preview follows a section of the original capture, fitted to the panel width. Its scale stays the same as the screenshot grows. Scroll inside it to inspect the captured content; move the pointer away to resume following. Drag the title row to move the panel; for compact controls, drag the status text. The panel stays on the capture display and, on X11, outside the selection.
 
-After scrolling, Kiri removes detected fixed headers and footers. Shadows may remain at outer edges you have not revisited. If Kiri asks for recovery, scroll back through the affected area before saving the complete image.
+After scrolling, Kaka removes detected fixed headers and footers. Shadows may remain at outer edges you have not revisited. If Kaka asks for recovery, scroll back through the affected area before saving the complete image.
 
-If the view cannot be joined, Kiri keeps the connected result and asks you to return to captured content. Scroll back, then continue through the missing area. Content skipped by a large scrollbar jump cannot be recovered without showing it again. **Save captured area**, when offered, explicitly saves only the current partial result; it does not fill missing or uncertain content. If saving fails, retry without losing that result.
+If the view cannot be joined, Kaka keeps the connected result and asks you to return to captured content. Scroll back, then continue through the missing area. Content skipped by a large scrollbar jump cannot be recovered without showing it again. **Save captured area**, when offered, explicitly saves only the current partial result; it does not fill missing or uncertain content. If saving fails, retry without losing that result.
 
 Available on macOS, Windows and Linux X11; unavailable on Wayland. On macOS, select an area fully inside one normal application window. Capture stays bound to that window and excludes external floating windows and other windows from the same app. Moving, resizing or losing the source window stops capture while preserving progress. Windows and X11 still capture the display region and do not automatically exclude external floating windows; keep those outside the selection.
 
@@ -170,7 +170,7 @@ Settings → About also offers Open Folder for settings and logs, plus a GitHub 
 
 ## Privacy
 
-Captures and media processing stay local. Remote OCR is optional and asks before each upload. Editable screenshots retain an original image locally, including pixels covered by annotations. Read the [privacy policy](privacy/en.md).
+Captures and media processing stay local unless you explicitly choose Send to LanChat. That action sends only the selected flattened image to a local or trusted-LAN room. Remote OCR is optional and asks before each upload. Editable screenshots retain an original image locally, including pixels covered by annotations. Read the [privacy policy](privacy/en.md).
 
 ## More docs
 

@@ -1,13 +1,13 @@
 [package]
-name = "kiri"
+name = "kaka"
 version = "1.6.26"
-description = "Kiri - a fast, local-first capture workspace"
-authors = ["yuxino"]
+description = "Kaka - a fast, local-first capture workspace"
+authors = ["yuxino", "cxq1221"]
 edition = "2021"
 rust-version = "1.88"
 
 [lib]
-name = "kiri_lib"
+name = "kaka_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

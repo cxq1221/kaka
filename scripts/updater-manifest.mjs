@@ -25,7 +25,7 @@ function assetUrl(tag, filename) {
   if (basename(filename) !== filename || /[\r\n]/.test(filename)) {
     throw new Error(`Invalid release asset name: ${filename}`);
   }
-  return `https://github.com/yuxino/kiri/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(filename)}`;
+  return `https://github.com/cxq1221/kaka/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(filename)}`;
 }
 
 export function buildUpdaterManifest({

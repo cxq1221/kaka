@@ -97,7 +97,7 @@ const updater: AppUpdater = {currentVersion: "1.0.0", isWindows: platform === "w
 createRoot(document.getElementById("root")!).render(
   <div className="library-root kiri-canvas-surface">
     <aside className="library-sidebar" aria-hidden="true">
-      <div className="library-sidebar__brand"><img src={brandIcon} alt=""/><strong>kiri</strong></div>
+      <div className="library-sidebar__brand"><img src={brandIcon} alt=""/><strong>kaka</strong></div>
       <span>{t("Settings")}</span>
     </aside>
     <div className="library-workspace">

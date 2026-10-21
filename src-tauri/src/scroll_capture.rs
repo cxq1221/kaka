@@ -523,7 +523,7 @@ fn start(app: AppHandle, label: String, id: uuid::Uuid, selection: Rect) -> Resu
                     .into(),
                 ),
             )
-            .title("kiri")
+            .title("Kaka")
             .inner_size(screen.width, screen.height)
             .position(screen.x, screen.y)
             .visible(false)
@@ -567,7 +567,7 @@ fn start(app: AppHandle, label: String, id: uuid::Uuid, selection: Rect) -> Resu
                     .into(),
                 ),
             )
-            .title("kiri")
+            .title("Kaka")
             .inner_size(frame.width, frame.height)
             .position(frame.x, frame.y)
             .visible(false)

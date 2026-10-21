@@ -12,7 +12,7 @@ OUT=Path('countdown-native-review');OUT.mkdir(exist_ok=True)
 report={'success':False,'native':True,'checks':[]}
 configure_crash_capture(OUT)
 installed_exe=os.environ.get('KIRI_QA_INSTALLED_EXE')
-app=Path(installed_exe or 'src-tauri/target/release/kiri.exe').resolve()
+app=Path(installed_exe or 'src-tauri/target/release/kaka.exe').resolve()
 report['candidate']={'path':str(app),'source':'installed' if installed_exe else 'compiled fallback',
     'sha256':hashlib.sha256(app.read_bytes()).hexdigest()}
 proc=subprocess.Popen([str(app)]);pid=proc.pid
@@ -314,7 +314,7 @@ except Exception as error:
   try:report['windows'].append({'title':w.window_text(),'controls':[{'type':c.element_info.control_type,'text':c.window_text()} for c in w.descendants()]})
   except Exception:pass
 finally:
- log=Path(os.environ['LOCALAPPDATA'])/'io.yuxino.kiri/logs/kiri.log'
+ log=Path(os.environ['LOCALAPPDATA'])/'io.cxq1221.kaka/logs/kaka.log'
  if log.exists():(OUT/'application.log').write_text('\n'.join(log.read_text(encoding='utf-8',errors='replace').splitlines()[-350:])+'\n',encoding='utf-8')
  (OUT/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
  subprocess.run(['taskkill','/PID',str(pid),'/T','/F'],capture_output=True)

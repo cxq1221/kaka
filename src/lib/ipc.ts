@@ -18,6 +18,10 @@ interface RectDto {
 
 export interface CaptureContextDto {
   captureId: string;
+  captureToken: string;
+  imageReady: boolean;
+  windowRectsReady: boolean;
+  residentOverlay: boolean;
   initialMode: "screenshot" | "record" | "ocr";
   displayWidth: number;
   displayHeight: number;
@@ -102,6 +106,24 @@ export type AssetAvailability = "ready" | "missing" | "unreadable" | "libraryUna
 
 export interface AssetAvailabilityDto {
   status: AssetAvailability;
+}
+
+export interface LanChatShareSettingsDto {
+  origin: string | null;
+}
+
+export interface LanChatConnectionDto {
+  origin: string;
+  roomName: string;
+  version: string;
+}
+
+export interface LanChatShareResultDto {
+  origin: string;
+  roomName: string;
+  messageId: number;
+  fileName: string;
+  fileSize: number;
 }
 
 export interface PendingRecordingDto {
@@ -356,6 +378,14 @@ export const api = {
   setLanguage: (language: string) => invoke<void>("set_language", { language }),
   copyAsset: (id: string) => invoke<void>("copy_asset", { id }),
   copyAssetFile: (id: string) => invoke<void>("copy_asset_file", { id }),
+  shareAssetToLanChat: (id: string) =>
+    invoke<LanChatShareResultDto>("share_asset_to_lanchat", { id }),
+  getLanChatShareSettings: () =>
+    invoke<LanChatShareSettingsDto>("get_lanchat_share_settings"),
+  setLanChatShareOrigin: (origin: string | null) =>
+    invoke<LanChatShareSettingsDto>("set_lanchat_share_origin", { origin }),
+  checkLanChatShare: () =>
+    invoke<LanChatConnectionDto>("check_lanchat_share"),
   openAsset: (id: string) => invoke<void>("open_asset", { id }),
   pinAsset: (id: string) => invoke<void>("pin_asset", { id }),
   openEditor: (id: string, recognizeQr = false) => invoke<void>("open_editor", { id, recognizeQr }),
@@ -371,7 +401,9 @@ export const api = {
   convertToGif: (id: string) => invoke<void>("convert_to_gif", { id }),
 
   startCapture: () => invoke<CaptureContextDto>("start_capture"),
+  getCaptureState: () => invoke<CaptureContextDto | null>("get_capture_state"),
   cancelCapture: () => invoke<void>("cancel_capture"),
+  dismissCaptureOverlay: () => invoke<void>("dismiss_capture_overlay"),
   startScrollCapture: (captureId: string, selection: RectDto) =>
     invoke<void>("start_scroll_capture", { captureId, selection }),
   moveScrollCapturePanel: (sessionId: string, x: number, y: number) =>
@@ -558,6 +590,25 @@ export function onPinOnTop(handler: () => void): Promise<UnlistenFn> {
 
 export function onEditorRecognizeQr(handler: () => void): Promise<UnlistenFn> {
   return listen("editor-recognize-qr", handler);
+}
+
+export function onCaptureStarted(handler: (context: CaptureContextDto) => void): Promise<UnlistenFn> {
+  return listen<CaptureContextDto>("capture-started", event => handler(event.payload));
+}
+
+export function onCaptureImageReady(handler: (captureId: string) => void): Promise<UnlistenFn> {
+  return listen<{ captureId: string }>("capture-image-ready", event => handler(event.payload.captureId));
+}
+
+export function onCaptureWindowRects(
+  handler: (captureId: string, windowRects: RectDto[]) => void,
+): Promise<UnlistenFn> {
+  return listen<{ captureId: string; windowRects: RectDto[] }>("capture-window-rects", event =>
+    handler(event.payload.captureId, event.payload.windowRects));
+}
+
+export function onCaptureEnded(handler: () => void): Promise<UnlistenFn> {
+  return listen("capture-ended", handler);
 }
 
 export function onRecordingState(

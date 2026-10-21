@@ -62,7 +62,8 @@
 .kiri-dock-row,
 .kiri-version-row,
 .kiri-shortcut-row,
-.kiri-storage-row {
+.kiri-storage-row,
+.kiri-lanchat-row {
   min-height: 64px;
   padding: 14px 18px;
   box-sizing: border-box;
@@ -76,7 +77,8 @@
 .kiri-dock-copy,
 .kiri-version-row > div:first-child,
 .kiri-shortcut-copy,
-.kiri-storage-copy {
+.kiri-storage-copy,
+.kiri-lanchat-copy {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -98,6 +100,7 @@
 .kiri-version-row > div:first-child > span,
 .kiri-shortcut-copy > span,
 .kiri-storage-copy > span,
+.kiri-lanchat-copy > span,
 .ocr-engine-copy > span:not(.ocr-engine-title-row) {
   color: var(--kiri-secondary-label);
   font-size: 12.5px;
@@ -179,6 +182,68 @@
 .kiri-storage-actions {
   justify-content: flex-end;
   flex-shrink: 0;
+}
+
+.kiri-lanchat-row {
+  align-items: flex-start;
+}
+
+.kiri-lanchat-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.kiri-lanchat-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 3px;
+  color: var(--kiri-secondary-label);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.kiri-lanchat-field input {
+  width: min(100%, 360px);
+  height: 34px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--kiri-surface-border);
+  border-radius: var(--kiri-radius-control);
+  background: var(--kiri-group-fill);
+  color: var(--kiri-label);
+  font: 13px var(--kiri-font-ui);
+}
+
+.kiri-lanchat-field input::placeholder {
+  color: var(--kiri-disabled-label);
+}
+
+.kiri-lanchat-hint {
+  font-size: 11.5px !important;
+}
+
+.kiri-lanchat-status {
+  color: var(--kiri-accent-strong) !important;
+  overflow-wrap: anywhere;
+}
+
+.kiri-lanchat-status.is-error {
+  color: var(--kiri-coral) !important;
+}
+
+.kiri-lanchat-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.kiri-lanchat-actions .kiri-button {
+  min-height: 32px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .kiri-shortcut-actions {
@@ -607,7 +672,8 @@
   .kiri-language-row,
   .kiri-version-row,
   .kiri-shortcut-row,
-  .kiri-storage-row {
+  .kiri-storage-row,
+  .kiri-lanchat-row {
     align-items: stretch;
     flex-direction: column;
   }

@@ -650,7 +650,7 @@ def smoke_isolated_package(executable, update_button, label):
     # before giving the next package fresh directories of its own.
     with isolated_windows_profile() as app_environment:
         library = Path(app_environment["APPDATA"]) / "kiri"
-        native_log = Path(app_environment["LOCALAPPDATA"]) / "io.yuxino.kiri/logs/kiri.log"
+        native_log = Path(app_environment["LOCALAPPDATA"]) / "io.cxq1221.kaka/logs/kaka.log"
         report["isolated_profile"] = True
         try:
             smoke(executable, update_button, label)
@@ -677,12 +677,12 @@ try:
     (output / "kiri-native.log").write_bytes(b"")
     portable = Path(os.environ["KIRI_QA_PORTABLE_EXE"])
     installed = Path(os.environ["KIRI_QA_INSTALLED_EXE"])
-    if not (portable.parent / "kiri.portable").is_file():
+    if not (portable.parent / "kaka.portable").is_file():
         raise RuntimeError("Extracted portable marker is missing")
-    if (installed.parent / "kiri.portable").exists():
+    if (installed.parent / "kaka.portable").exists():
         raise RuntimeError("Installed copy contains a portable marker")
     smoke_isolated_package(portable, "Open Releases Page", "portable ZIP")
-    if sorted(path.name for path in portable.parent.iterdir()) != ["kiri.exe", "kiri.portable"]:
+    if sorted(path.name for path in portable.parent.iterdir()) != ["kaka.exe", "kaka.portable"]:
         raise RuntimeError("Portable copy wrote unexpected files beside the executable")
     smoke_isolated_package(installed, "Check for Updates", "NSIS installation")
     report["native_acceptance_success"] = True

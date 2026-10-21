@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=kiri
+Name=Kaka
 Comment=A fast, local-first capture workspace
-Exec=kiri
-Icon=kiri
+Exec=kaka
+Icon=kaka
 Terminal=false
 Categories=Utility;Graphics;
-# The public launcher remains kiri.desktop. This matching reverse-DNS entry
+# The public launcher remains kaka.desktop. This matching reverse-DNS entry
 # gives the host GlobalShortcuts Portal a stable application/permission ID.
 NoDisplay=true

@@ -1,6 +1,6 @@
 //! Local asset-library persistence and recoverable Trash operations.
-//! Storage layout and JSON schema stay compatible with the Swift app, so an
-//! existing library at ~/Library/Application Support/kiri keeps working.
+//! Storage layout and JSON schema stay compatible with Kiri and the original
+//! Swift app, so an existing library keeps working after the rename.
 
 #[cfg(test)]
 use std::cell::Cell;
@@ -65,6 +65,8 @@ pub enum AssetLibraryError {
 pub type Result<T> = std::result::Result<T, AssetLibraryError>;
 
 const ANNOTATION_PROJECT_VERSION: u32 = 1;
+const DATA_DIRECTORY_NAME: &str = "kaka";
+const LEGACY_DATA_DIRECTORY_NAME: &str = "kiri";
 
 /// Test-only view of a validated annotation project.
 #[cfg(test)]
@@ -201,14 +203,24 @@ impl AssetLibrary {
         })
     }
 
-    /// Mirrors `AssetLibrary.defaultRootURL()`: `~/Library/Application
-    /// Support/kiri` on macOS, `%APPDATA%/kiri` on Windows.
+    /// Uses the Kaka data directory for a new install. If only a Kiri library
+    /// exists, keep using it so the rename does not look like data loss.
     pub fn default_root_url() -> Option<PathBuf> {
-        dirs::data_dir().map(|dir| dir.join("kiri"))
+        Self::default_root_in(dirs::data_dir()?)
+    }
+
+    fn default_root_in(base: PathBuf) -> Option<PathBuf> {
+        let current = base.join(DATA_DIRECTORY_NAME);
+        let legacy = base.join(LEGACY_DATA_DIRECTORY_NAME);
+        Some(if !current.exists() && legacy.exists() {
+            legacy
+        } else {
+            current
+        })
     }
 
     /// Revalidates the on-disk library boundary after startup. Custom-library
-    /// volumes can disappear or be replaced while Kiri is running, so callers
+    /// volumes can disappear or be replaced while Kaka is running, so callers
     /// must not rely only on the checks performed by `open_existing`.
     pub fn validate_storage_layout(&self) -> Result<()> {
         let root_url = self

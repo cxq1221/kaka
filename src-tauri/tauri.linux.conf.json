@@ -31,15 +31,15 @@
           "xdg-desktop-portal-gnome | xdg-desktop-portal-kde | xdg-desktop-portal-gtk | xdg-desktop-portal-wlr"
         ],
         "files": {
-          "/usr/share/applications/io.yuxino.kiri.desktop": "linux/io.yuxino.kiri.desktop"
+          "/usr/share/applications/io.cxq1221.kaka.desktop": "linux/io.cxq1221.kaka.desktop"
         }
       }
     }
   },
   "app": {
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost kiri: http://kiri.localhost; img-src 'self' data: blob: kiri: http://kiri.localhost; media-src 'self' blob: kiri: http://kiri.localhost http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-      "devCsp": "default-src 'self' http://localhost:1420; connect-src ipc: http://ipc.localhost kiri: http://kiri.localhost http://localhost:1420 ws://localhost:1420; img-src 'self' data: blob: kiri: http://kiri.localhost http://localhost:1420; media-src 'self' blob: kiri: http://kiri.localhost http://127.0.0.1:*; style-src 'self' 'unsafe-inline' http://localhost:1420; script-src 'self' 'unsafe-eval' http://localhost:1420; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost kaka: http://kaka.localhost; img-src 'self' data: blob: kaka: http://kaka.localhost; media-src 'self' blob: kaka: http://kaka.localhost http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "devCsp": "default-src 'self' http://localhost:1420; connect-src ipc: http://ipc.localhost kaka: http://kaka.localhost http://localhost:1420 ws://localhost:1420; img-src 'self' data: blob: kaka: http://kaka.localhost http://localhost:1420; media-src 'self' blob: kaka: http://kaka.localhost http://127.0.0.1:*; style-src 'self' 'unsafe-inline' http://localhost:1420; script-src 'self' 'unsafe-eval' http://localhost:1420; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     }
   }
 }

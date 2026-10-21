@@ -13,6 +13,10 @@ import {
   type PreparedOcrRequestDto,
   type QrScanDto,
   type RecordingOptions,
+  onCaptureEnded,
+  onCaptureImageReady,
+  onCaptureStarted,
+  onCaptureWindowRects,
 } from "../lib/ipc";
 import { t } from "../i18n";
 import RecordingMicrophoneSelect from "./RecordingMicrophoneSelect";
@@ -142,7 +146,9 @@ function windowCandidate(
 
 export function OverlayWindow() {
   const [context, setContext] = useState<CaptureContextDto | null>(null);
+  const contextRef = useRef<CaptureContextDto | null>(null);
   const [frozenSrc, setFrozenSrc] = useState<string>("");
+  const [imageReady, setImageReady] = useState(false);
   const [phase, setPhase] = useState<Phase>("mode-select");
   const [mode, setMode] = useState<Mode>("screenshot");
   const [selection, setSelection] = useState<Rect | null>(null);
@@ -208,75 +214,206 @@ export function OverlayWindow() {
   const completionLock = useMemo(() => new AnnotationInteractionLock(), []);
   const [completing, setCompleting] = useState(false);
   const modeRef = useRef<Mode>("screenshot");
+  const phaseRef = useRef<Phase>("mode-select");
+  const selectionRef = useRef<Rect | null>(null);
+  const hoverWindowRef = useRef<Rect | null>(null);
+  const currentCaptureIdRef = useRef<string | null>(null);
+  const captureGenerationRef = useRef(0);
+  const frozenBlobUrlRef = useRef<string | null>(null);
+  const frozenImageKeyRef = useRef<string | null>(null);
+  const frozenLoadAbortRef = useRef<AbortController | null>(null);
   const preparedOcrRef = useRef<PreparedOcrRequestDto | null>(null);
   const ocrGenerationRef = useRef(0);
   modeRef.current = mode;
+  contextRef.current = context;
 
-  // Load context on mount.
+  const resetCapturePresentation = useCallback((next: CaptureContextDto | null) => {
+    captureGenerationRef.current += 1;
+    frozenLoadAbortRef.current?.abort();
+    frozenLoadAbortRef.current = null;
+    frozenImageKeyRef.current = null;
+    if (frozenBlobUrlRef.current) {
+      URL.revokeObjectURL(frozenBlobUrlRef.current);
+      frozenBlobUrlRef.current = null;
+    }
+    const pendingOcr = preparedOcrRef.current;
+    preparedOcrRef.current = null;
+    if (pendingOcr) void api.cancelPreparedOcr(pendingOcr.requestId).catch(() => {});
+    const qrRequest = qrRequestRef.current;
+    qrRequestRef.current = null;
+    if (qrRequest) void api.cancelQr(qrRequest).catch(() => {});
+
+    completionLock.release();
+    currentCaptureIdRef.current = next?.captureId ?? null;
+    contextRef.current = next;
+    modeRef.current = next?.initialMode ?? "screenshot";
+    phaseRef.current = "mode-select";
+    selectionRef.current = null;
+    hoverWindowRef.current = null;
+    selectionPointerStartRef.current = null;
+    selectionClickMovedRef.current = false;
+    doubleClickCanFinishRef.current = false;
+    modeSelectorDragRef.current = null;
+    suppressModeSelectorClickRef.current = false;
+    hasAnnotationContentRef.current = false;
+    ocrGenerationRef.current += 1;
+
+    setContext(next);
+    setFrozenSrc("");
+    setImageReady(next?.imageReady ?? false);
+    setPhase("mode-select");
+    setMode(next?.initialMode ?? "screenshot");
+    setSelection(null);
+    setSizeControlsOpen(false);
+    setHoverWindow(null);
+    setDrag(null);
+    setResizeHandle(null);
+    setMoveDrag(null);
+    setTool("select");
+    setSelectedMark(null);
+    setSelectedMarkEditing(false);
+    setAnnotationError(null);
+    setCalloutNumber(1);
+    setHasAnnotations(false);
+    setCanUndo(false);
+    setCanRedo(false);
+    setQrScan(null);
+    setQrFailed(false);
+    setOcrText("");
+    setOcrSaved(false);
+    setOcrFailed(false);
+    setPreparedOcr(null);
+    setRemoteOcrFailed(false);
+    setCompleting(false);
+    setModeSelectorPosition(null);
+    setModeSelectorDragging(false);
+    setModeSelectorBounds(null);
+    setRecordSelectionRevision(value => value + 1);
+  }, [completionLock]);
+
+  const loadFrozenCapture = useCallback(async (next: CaptureContextDto) => {
+    if (!next.imageReady) return;
+    const key = `${next.captureId}:${next.captureToken}`;
+    if (frozenImageKeyRef.current === key) return;
+    const generation = captureGenerationRef.current;
+    frozenLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    frozenLoadAbortRef.current = controller;
+    const frozenCaptureUrl = kiriResourceUrl("capture", ["frozen", `${next.captureToken}.png`]);
+    try {
+      const response = await fetch(frozenCaptureUrl, { signal: controller.signal });
+      if (!response.ok) throw new Error("frozen capture unavailable");
+      const blob = await response.blob();
+      if (controller.signal.aborted || generation !== captureGenerationRef.current ||
+          currentCaptureIdRef.current !== next.captureId) return;
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const decoded = new Image();
+        await new Promise<void>((resolve, reject) => {
+          decoded.onload = () => resolve();
+          decoded.onerror = () => reject(new Error("frozen capture could not be decoded"));
+          decoded.src = objectUrl;
+        });
+      } catch (error) {
+        URL.revokeObjectURL(objectUrl);
+        throw error;
+      }
+      if (controller.signal.aborted || generation !== captureGenerationRef.current ||
+          currentCaptureIdRef.current !== next.captureId) {
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+      if (frozenBlobUrlRef.current) URL.revokeObjectURL(frozenBlobUrlRef.current);
+      frozenBlobUrlRef.current = objectUrl;
+      frozenImageKeyRef.current = key;
+      setFrozenSrc(objectUrl);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (generation !== captureGenerationRef.current ||
+          currentCaptureIdRef.current !== next.captureId) return;
+      reportFrontend(`overlay could not load the frozen capture: ${String(error)}`);
+      void api.cancelCapture().catch(() => {});
+    }
+  }, []);
+
+  const applyCaptureContext = useCallback((next: CaptureContextDto) => {
+    if (currentCaptureIdRef.current === next.captureId) {
+      setContext(current => {
+        if (!current || current.captureId !== next.captureId) {
+          contextRef.current = next;
+          return next;
+        }
+        const merged = {
+          ...current,
+          ...next,
+          windowRects: next.windowRectsReady ? next.windowRects : current.windowRects,
+        };
+        contextRef.current = merged;
+        return merged;
+      });
+      if (next.imageReady) {
+        setImageReady(true);
+        void loadFrozenCapture(next);
+      }
+      return;
+    }
+    resetCapturePresentation(next);
+    if (next.imageReady) void loadFrozenCapture(next);
+  }, [loadFrozenCapture, resetCapturePresentation]);
+
+  // The macOS overlay stays mounted for the app lifetime. Subscribe before
+  // reading current state so a capture started during prewarm is never lost.
   useEffect(() => {
     let disposed = false;
-    let failed = false;
-    let frozenBlobUrl: string | null = null;
-    const abortOverlay = (message: string) => {
-      if (disposed || failed) return;
-      failed = true;
-      reportFrontend(message);
-      void api.cancelCapture().catch(() => getCurrentWindow().close());
-    };
-    const captureToken = new URLSearchParams(window.location.search).get("captureToken");
-    if (!captureToken || !/^[a-f0-9]{32}$/.test(captureToken)) {
-      abortOverlay("overlay capture token is missing or invalid");
-      return () => {
-        disposed = true;
-      };
-    }
-    const frozenCaptureUrl = kiriResourceUrl("capture", ["frozen", `${captureToken}.png`]);
+    let unlisteners: Array<() => void> = [];
     (window as unknown as { __kiriOverlay: boolean }).__kiriOverlay = true;
-    api.startCapture()
-      .then((ctx) => {
-        if (disposed) return;
-        const initialMode = ctx.initialMode ?? "screenshot";
-        modeRef.current = initialMode;
-        setMode(initialMode);
-        setContext(ctx);
-      })
-      .catch((error) => {
-        void invoke("log_frontend_error", {
-          message: `overlay startCapture rejected: ${String(error)}`,
-        }).catch(() => {});
-        // Permission or capture failure: close the overlay so the library
-        // window's error banner (emitted by the backend) is visible.
-        void getCurrentWindow().close();
-      });
+    const subscribe = async () => {
+      const listeners = await Promise.all([
+        onCaptureStarted(applyCaptureContext),
+        onCaptureImageReady(captureId => {
+          if (currentCaptureIdRef.current !== captureId) return;
+          setImageReady(true);
+          setContext(current => {
+            if (current?.captureId !== captureId) return current;
+            const merged = { ...current, imageReady: true };
+            contextRef.current = merged;
+            return merged;
+          });
+          const current = contextRef.current;
+          if (current?.captureId === captureId) void loadFrozenCapture({ ...current, imageReady: true });
+        }),
+        onCaptureWindowRects((captureId, windowRects) => {
+          const current = contextRef.current;
+          if (current?.captureId !== captureId) return;
+          const merged = { ...current, windowRects, windowRectsReady: true };
+          contextRef.current = merged;
+          setContext(merged);
+        }),
+        onCaptureEnded(() => resetCapturePresentation(null)),
+      ]);
+      if (disposed) {
+        listeners.forEach(stop => stop());
+        return;
+      }
+      unlisteners = listeners;
+      const current = await api.getCaptureState();
+      if (!disposed && current) applyCaptureContext(current);
+    };
+    void subscribe().catch(error => reportFrontend(`overlay event setup failed: ${String(error)}`));
     api.getRecordingOptions().then((options) => setRecordOptions(options)).catch(() => {});
     api.micSupported().then((supported) => setMicSupported(supported)).catch(() => {});
     api.platformCapabilities().then((caps) => {
       setPlatformCaps(caps);
       setMicSupported(caps.microphone);
     }).catch(() => {});
-    // Load the frozen capture through a blob URL: canvas operations on the
-    // custom-scheme image would taint the canvas and break PNG export.
-    fetch(frozenCaptureUrl)
-      .then((response) => {
-        if (!response.ok) throw new Error("frozen capture unavailable");
-        return response.blob();
-      })
-      .then((blob) => {
-        if (disposed) return;
-        const img = new Image();
-        img.onerror = () => abortOverlay("overlay could not decode the frozen capture");
-        frozenBlobUrl = URL.createObjectURL(blob);
-        img.src = frozenBlobUrl;
-        setFrozenSrc(img.src);
-      })
-      .catch((error) =>
-        abortOverlay(`overlay could not load the frozen capture: ${String(error)}`),
-      );
     return () => {
       disposed = true;
-      if (frozenBlobUrl) URL.revokeObjectURL(frozenBlobUrl);
+      unlisteners.forEach(stop => stop());
+      frozenLoadAbortRef.current?.abort();
+      if (frozenBlobUrlRef.current) URL.revokeObjectURL(frozenBlobUrlRef.current);
+      frozenBlobUrlRef.current = null;
     };
-  }, []);
+  }, [applyCaptureContext, loadFrozenCapture, resetCapturePresentation]);
 
   const bounds: Rect = context
     ? { x: 0, y: 0, width: context.displayWidth, height: context.displayHeight }
@@ -295,7 +432,8 @@ export function OverlayWindow() {
   }, [selectedMark, selectedMarkEditing, selection]);
 
   const colorPicker = useCaptureColorPicker(
-    !!context && mode === "screenshot" && (phase === "mode-select" || phase === "selecting") &&
+    !!context && imageReady && !!frozenSrc && mode === "screenshot" &&
+      (phase === "mode-select" || phase === "selecting") &&
       !completing && !drag && !resizeHandle && !moveDrag && !modeSelectorDragging,
     imageRef, bounds, api.copyCaptureColor,
   );
@@ -417,6 +555,7 @@ export function OverlayWindow() {
     if (id) void api.cancelQr(id).catch(() => {});
   }, []);
   const runQr = useCallback(async (selection: Rect) => {
+    if (!imageReady) return;
     discardQr();
     canvasRef.current?.commitTextEditing();
     qrReturnPhaseRef.current = phaseRef.current === "annotating" ? "annotating" : "selecting";
@@ -429,7 +568,7 @@ export function OverlayWindow() {
     } catch {
       if (qrRequestRef.current === id) setQrFailed(true);
     }
-  }, [discardQr]);
+  }, [discardQr, imageReady]);
   const closeQr = useCallback(() => {
     discardQr();
     setPhase(qrReturnPhaseRef.current);
@@ -439,11 +578,14 @@ export function OverlayWindow() {
   const cancel = useCallback(() => {
     discardPreparedOcr();
     discardQr();
-    void api.cancelCapture().catch(() => {});
-  }, [discardPreparedOcr, discardQr]);
+    void api.cancelCapture()
+      .then(() => resetCapturePresentation(null))
+      .catch(() => {});
+  }, [discardPreparedOcr, discardQr, resetCapturePresentation]);
 
   const complete = useCallback(
     async (pinOnTop = false) => {
+      if (!imageReady) return;
       if (!completionLock.acquire()) return;
       const modeSelectorGesture = modeSelectorDragRef.current;
       if (modeSelectorGesture) {
@@ -470,11 +612,16 @@ export function OverlayWindow() {
           return;
         }
         await api.confirmCapture(result.png, { selection, document: result.document }, pinOnTop);
-        // The backend confirmation is synchronous. Close this owner WebView
-        // only after its IPC response has arrived; dispatching a backend
-        // close while WebView2 is still waiting can deadlock the Windows UI
-        // thread and strand both the resident process and the next launch.
-        await getCurrentWindow().close();
+        // The backend confirmation is synchronous. Release this owner only
+        // after its IPC response has arrived. The macOS overlay is resident,
+        // so hide it and let the backend publish completion feedback; Windows
+        // keeps the existing close-after-response behavior.
+        if (context?.residentOverlay) {
+          await api.dismissCaptureOverlay();
+          resetCapturePresentation(null);
+        } else {
+          await getCurrentWindow().close();
+        }
       } catch (error) {
         reportFrontend(`confirm_capture rejected: ${String(error)}`);
       } finally {
@@ -482,11 +629,11 @@ export function OverlayWindow() {
         setCompleting(false);
       }
     },
-    [completionLock, selection],
+    [completionLock, context?.residentOverlay, imageReady, resetCapturePresentation, selection],
   );
 
   const startScrollCapture = useCallback(async () => {
-    if (!selection || !context?.captureId || !platformCaps.scrollingCapture ||
+    if (!imageReady || !selection || !context?.captureId || !platformCaps.scrollingCapture ||
         hasAnnotationContentRef.current || selectedMarkEditing || !completionLock.acquire()) return;
     setCompleting(true);
     setAnnotationError(null);
@@ -499,7 +646,7 @@ export function OverlayWindow() {
       completionLock.release();
       setCompleting(false);
     }
-  }, [completionLock, context?.captureId, platformCaps.scrollingCapture, selectedMarkEditing, selection]);
+  }, [completionLock, context?.captureId, imageReady, platformCaps.scrollingCapture, selectedMarkEditing, selection]);
 
   const recognizePreparedLocal = useCallback(async () => {
     const pending = preparedOcrRef.current;
@@ -559,6 +706,7 @@ export function OverlayWindow() {
 
   const runOcr = useCallback(
     async (sel: Rect) => {
+      if (!imageReady) return;
       const generation = ocrGenerationRef.current + 1;
       ocrGenerationRef.current = generation;
       const previous = preparedOcrRef.current;
@@ -611,7 +759,7 @@ export function OverlayWindow() {
         setPhase("ocr-result");
       }
     },
-    [recognizePreparedLocal],
+    [imageReady, recognizePreparedLocal],
   );
 
   useEffect(
@@ -750,11 +898,8 @@ export function OverlayWindow() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [complete, completionLock, recognizePreparedLocal, runOcr, colorPicker.onCopyKeyDown]);
 
-  const phaseRef = useRef<Phase>("mode-select");
   phaseRef.current = phase;
-  const selectionRef = useRef<Rect | null>(null);
   selectionRef.current = selection;
-  const hoverWindowRef = useRef<Rect | null>(null);
   const recordOptionsRef = useRef<RecordingOptions>(recordOptions);
   recordOptionsRef.current = recordOptions;
 
@@ -1287,9 +1432,12 @@ export function OverlayWindow() {
       )}
 
       {phase === "qr-result" && selection && <QrOverlay scan={qrScan} failed={qrFailed} selection={selection} bounds={bounds} scale={context?.scale ?? 1} onClose={closeQr} onOpened={() => {
-        // Wait for the opening IPC response before closing its owner WebView.
-        // The backend already ended the capture and hid this overlay.
-        void getCurrentWindow().close().catch(error => reportFrontend(`QR window close rejected: ${String(error)}`));
+        // Wait for the opening IPC response before releasing its owner.
+        if (context?.residentOverlay) {
+          resetCapturePresentation(null);
+        } else {
+          void getCurrentWindow().close().catch(error => reportFrontend(`QR window close rejected: ${String(error)}`));
+        }
       }}/>}
 
       {/* OCR states */}
@@ -1394,7 +1542,7 @@ export function OverlayWindow() {
           selectedMark={selectedMark}
           avoidBounds={selectedAnnotationBounds}
           renderStyleControls={panelChrome => <AnnotationStyleControls panelChrome={panelChrome} tool={tool} selected={selectedMark} appearance={appearance}
-            disabled={completing} nextNumber={calloutNumber} onNextNumber={setCalloutNumber}
+            disabled={completing || !imageReady} nextNumber={calloutNumber} onNextNumber={setCalloutNumber}
             onCalloutEdit={(patch, transient) => canvasRef.current?.updateSelectedCallout(patch, transient)}
             onChange={(patch, transient) => { setAnnotationError(null); setAppearance({...appearance, ...patch}); canvasRef.current?.updateSelectionAppearance(patch, transient); }}
             onFinish={() => canvasRef.current?.finishAppearanceAdjustment()}
@@ -1405,7 +1553,7 @@ export function OverlayWindow() {
           canSetSize={phase === "selecting"}
           sizeControlsOpen={sizeControlsOpen}
           onToggleSize={() => setSizeControlsOpen(open => !open)}
-          disabled={completing}
+          disabled={completing || !imageReady}
           onUndo={() => canvasRef.current?.undo()}
           onRedo={() => canvasRef.current?.redo()}
           onDone={() => void complete()}

@@ -460,7 +460,7 @@ mod tests {
         use std::io::BufReader;
         let original = std::fs::read(source)?;
         let root = std::fs::canonicalize(directory)?.join("素材库 test #100%")
-            .join("Kiri Library").join("Assets");
+            .join("Kaka Library").join("Assets");
         let mut long_root = root.clone();
         for _ in 0..6 { long_root = long_root.join("长路径-abcdefghijklmnopqrstuvwxyz-0123456789"); }
         let mut evidence = Vec::new();

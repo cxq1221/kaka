@@ -455,8 +455,8 @@ def verify_support_folders():
     # active tab has one GitHub button and one support-folder button.
     find("GitHub", kinds=("Button",), scope=library_window, scroll=True)
     destinations = [
-        ("Settings Folder", Path(app_environment["APPDATA"]) / "io.yuxino.kiri"),
-        ("Logs Folder", Path(app_environment["LOCALAPPDATA"]) / "io.yuxino.kiri" / "logs"),
+        ("Settings Folder", Path(app_environment["APPDATA"]) / "io.cxq1221.kaka"),
+        ("Logs Folder", Path(app_environment["LOCALAPPDATA"]) / "io.cxq1221.kaka" / "logs"),
         ("Error Logs Folder", Path(app_environment["LOCALAPPDATA"]) / "kiri" / "logs"),
         ("Temporary Folder", Path(app_environment["TEMP"])),
     ]
@@ -548,7 +548,7 @@ def verify_current_root_capture():
 
 def make_library(video_directory):
     global root
-    root = workspace / "资料库 test, 130" / "Kiri Library"
+    root = workspace / "资料库 test, 130" / "Kaka Library"
     root.mkdir(parents=True)
     for name in ("Assets", "Thumbnails", "Annotations", "VideoProjects"):
         (root / name).mkdir()
@@ -575,7 +575,7 @@ def make_library(video_directory):
     (root / "library.json").write_text(json.dumps(assets), encoding="utf-8")
     identity = {"schemaVersion": 2, "libraryId": str(uuid.uuid4()), "generation": str(uuid.uuid4())}
     (root / ".kiri-library.json").write_text(json.dumps(identity), encoding="utf-8")
-    config = Path(app_environment["APPDATA"]) / "io.yuxino.kiri"
+    config = Path(app_environment["APPDATA"]) / "io.cxq1221.kaka"
     extended_root = str(root.resolve())
     if not extended_root.startswith("\\\\?\\"):
         extended_root = "\\\\?\\" + extended_root
@@ -587,8 +587,8 @@ def make_library(video_directory):
 
 try:
     executable = Path(os.environ["KIRI_LIBRARY_FILES_QA_EXE"]).resolve()
-    expected = Path(os.environ["RUNNER_TEMP"]) / "kiri-installed-review" / "kiri.exe"
-    if normalized(executable) != normalized(expected) or not executable.is_file() or (executable.parent / "kiri.portable").exists():
+    expected = Path(os.environ["RUNNER_TEMP"]) / "kiri-installed-review" / "kaka.exe"
+    if normalized(executable) != normalized(expected) or not executable.is_file() or (executable.parent / "kaka.portable").exists():
         raise RuntimeError("File actions must use this run's formally NSIS-installed executable")
     harness_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     report.update({"source_sha": os.environ.get("KIRI_LIBRARY_FILES_CANDIDATE_SHA") or harness_sha,
@@ -654,7 +654,7 @@ try:
                         fixture.wait(timeout=10)
                     except Exception as error:
                         cleanup_errors.append(str(error))
-                log = Path(app_environment["LOCALAPPDATA"]) / "io.yuxino.kiri" / "logs" / "kiri.log"
+                log = Path(app_environment["LOCALAPPDATA"]) / "io.cxq1221.kaka" / "logs" / "kaka.log"
                 if log.is_file():
                     shutil.copyfile(log, output / "kiri-native.log")
                 if cleanup_errors:

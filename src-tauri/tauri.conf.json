@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "kiri",
+  "productName": "Kaka",
   "version": "1.6.26",
-  "identifier": "io.yuxino.kiri",
+  "identifier": "io.cxq1221.kaka",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "library",
-        "title": "kiri",
+        "title": "Kaka",
         "width": 960,
         "height": 640,
         "minWidth": 820,
@@ -25,8 +25,8 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost kiri: http://kiri.localhost; img-src 'self' data: blob: kiri: http://kiri.localhost; media-src 'self' blob: kiri: http://kiri.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-      "devCsp": "default-src 'self' http://localhost:1420; connect-src ipc: http://ipc.localhost kiri: http://kiri.localhost http://localhost:1420 ws://localhost:1420; img-src 'self' data: blob: kiri: http://kiri.localhost http://localhost:1420; media-src 'self' blob: kiri: http://kiri.localhost; style-src 'self' 'unsafe-inline' http://localhost:1420; script-src 'self' 'unsafe-eval' http://localhost:1420; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost kaka: http://kaka.localhost; img-src 'self' data: blob: kaka: http://kaka.localhost; media-src 'self' blob: kaka: http://kaka.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "devCsp": "default-src 'self' http://localhost:1420; connect-src ipc: http://ipc.localhost kaka: http://kaka.localhost http://localhost:1420 ws://localhost:1420; img-src 'self' data: blob: kaka: http://kaka.localhost http://localhost:1420; media-src 'self' blob: kaka: http://kaka.localhost; style-src 'self' 'unsafe-inline' http://localhost:1420; script-src 'self' 'unsafe-eval' http://localhost:1420; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     }
   },
   "bundle": {
@@ -62,7 +62,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMxQTIxQzZBODYwQzExRkYKUldUL0VReUdhaHlpTVhQWjNza1N4ajd3eXZTakNWUDdKSjBiUVhUU01aRitockpTMC9EZms4cjQK",
       "endpoints": [
-        "https://github.com/yuxino/kiri/releases/latest/download/latest.json"
+        "https://github.com/cxq1221/kaka/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

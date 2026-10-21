@@ -8,7 +8,7 @@ import re
 import shutil
 import subprocess
 
-REPOSITORY = "yuxino/Kiri"
+REPOSITORY = "cxq1221/kaka"
 WINDOWS_JOB = "Build and test Windows app (Server 2025)"
 COLOR_STEP = "Verify hover colors and native clipboard on the installed Windows app"
 
@@ -66,12 +66,12 @@ def main():
         subprocess.run(["gh", "run", "download", str(args.run), "--repo", REPOSITORY,
                         "--name", artifact, "--dir", str(candidate / subdir)], check=True)
     previous = json.loads((candidate / "review/report.json").read_text(encoding="utf-8-sig"))
-    executables = list((candidate / "binary").rglob("kiri.exe"))
+    executables = list((candidate / "binary").rglob("kaka.exe"))
     require(len(executables) == 1 and not executables[0].is_symlink(), "Exactly one candidate executable is required")
     checksum = hashlib.sha256(executables[0].read_bytes()).hexdigest()
     require(previous.get("source_sha") == source_sha and previous.get("executable_sha256") == checksum,
             "Candidate bytes do not match the previously installed color QA executable")
-    target = Path(os.environ["RUNNER_TEMP"]) / "kiri-installed-review/kiri.exe"
+    target = Path(os.environ["RUNNER_TEMP"]) / "kiri-installed-review/kaka.exe"
     target.parent.mkdir()
     shutil.copy2(executables[0], target)
     output = Path("windows-capture-color-review")

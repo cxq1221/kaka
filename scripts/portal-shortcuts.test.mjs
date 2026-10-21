@@ -7,7 +7,7 @@ const source = 'import React from "react";\n' + readFileSync(new URL("../src/set
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const pending = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 const state = (status, revision = 1, extra = {}) => ({
-  status, revision, available: true, canConfigure: false, appId: "io.yuxino.kiri",
+  status, revision, available: true, canConfigure: false, appId: "io.cxq1221.kaka",
   bindings: ["capture", "pause-resume", "stop"].map((id) => ({ id, trigger: null })), ...extra,
 });
 function harness(initial, overrides = {}) {
@@ -32,7 +32,7 @@ const button = (tree, label) => nodes(tree).find((node) => node?.type === "butto
 test("unavailable Wayland keeps all three commands and makes no automatic setup request", async () => {
   const ui = harness(state("unavailable", 1, { available: false }));
   await tick(); const tree = ui.card.render();
-  for (const command of ["kiri --capture", "kiri --toggle-recording-pause", "kiri --stop-recording"]) assert.ok(text(tree).includes(command));
+  for (const command of ["kaka --capture", "kaka --toggle-recording-pause", "kaka --stop-recording"]) assert.ok(text(tree).includes(command));
   assert.equal(button(tree, "Set Up Desktop Shortcuts").props.disabled, true);
   assert.equal(button(tree, "Refresh Shortcut Status").props.disabled, false);
   assert.deepEqual(ui.calls, []);
@@ -92,9 +92,9 @@ test("native shortcut path remains separate and packaging matches the portal app
   const config = JSON.parse(root("src-tauri/tauri.conf.json"));
   const linux = JSON.parse(root("src-tauri/tauri.linux.conf.json"));
   const file = linux.bundle.linux.deb.files[`/usr/share/applications/${config.identifier}.desktop`];
-  assert.equal(file, "linux/io.yuxino.kiri.desktop");
+  assert.equal(file, "linux/io.cxq1221.kaka.desktop");
   assert.match(root(`src-tauri/${file}`), /^NoDisplay=true$/m);
-  assert.match(root(`src-tauri/${file}`), /^Exec=kiri$/m);
+  assert.match(root(`src-tauri/${file}`), /^Exec=kaka$/m);
 });
 
 test("hiding the resident library cancels pending setup without cancelling on portal focus transfer", () => {

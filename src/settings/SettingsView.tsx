@@ -17,6 +17,7 @@ import { ShortcutsSettings } from "./ShortcutsSettings";
 import { DockVisibilityRow } from "./DockVisibilityRow";
 import { SupportLinks } from "./SupportLinks";
 import { OcrSettingsSection } from "./OcrSettingsSection";
+import { LanChatShareRow } from "./LanChatShareRow";
 import { useDialogFocusTrap } from "./useDialogFocusTrap";
 import "./settings.css";
 
@@ -321,7 +322,7 @@ function AboutSettingsSection({ updater }: { updater: AppUpdater }) {
       <div className="kiri-settings-card kiri-version-row">
         <div className="kiri-update-copy">
           <div className="kiri-version-title">
-            <strong>Kiri</strong>
+            <strong>Kaka</strong>
             <span className="kiri-settings-badge">
               {fmt("Version %@", currentVersion ? `v${currentVersion}` : "—")}
             </span>
@@ -579,6 +580,7 @@ function GeneralSettingsSection() {
           ) : null}
         </div>
       </div>
+      <LanChatShareRow />
       </div>
     </section>
   );

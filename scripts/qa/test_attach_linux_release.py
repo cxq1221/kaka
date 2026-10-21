@@ -19,7 +19,7 @@ spec.loader.exec_module(attach)
 
 class AttachmentGuards(unittest.TestCase):
     def setUp(self):
-        self.repository = "yuxino/Kiri"
+        self.repository = "cxq1221/kaka"
         self.tag = "v1.6.24"
         self.sha = "a" * 40
         self.run = {"id": 123, "repository": {"full_name": self.repository},
@@ -28,7 +28,7 @@ class AttachmentGuards(unittest.TestCase):
                     "head_sha": self.sha, "status": "completed", "conclusion": "success"}
         self.draft = {"id": 55, "tag_name": self.tag, "draft": True, "published_at": None}
         self.tag_ref = {"ref": "refs/tags/" + self.tag, "object": {"type": "commit", "sha": self.sha}}
-        self.files = {"kiri_1.6.24_amd64.deb": {"path": Path("package.deb"), "size": 20,
+        self.files = {"kaka_1.6.24_amd64.deb": {"path": Path("package.deb"), "size": 20,
                                                "digest": "sha256:" + "b" * 64},
                       "provenance.json": {"path": Path("provenance.json"), "size": 10,
                                           "digest": "sha256:" + "c" * 64}}
@@ -47,8 +47,8 @@ class AttachmentGuards(unittest.TestCase):
 
     def test_candidate_must_be_successful_official_tag_push(self):
         attach.validate_run(self.run, self.repository, 123, self.tag, self.sha)
-        replacements = (("id", 124), ("repository", {"full_name": "other/Kiri"}),
-                        ("head_repository", {"full_name": "fork/Kiri"}),
+        replacements = (("id", 124), ("repository", {"full_name": "other/Kaka"}),
+                        ("head_repository", {"full_name": "fork/Kaka"}),
                         ("path", ".github/workflows/other.yml"), ("event", "pull_request"),
                         ("head_branch", "main"), ("head_sha", "d" * 40),
                         ("status", "in_progress"), ("conclusion", "failure"))
@@ -135,8 +135,8 @@ class AttachmentGuards(unittest.TestCase):
             if upload:
                 posts.append(endpoint)
                 self.assertTrue(endpoint.startswith(
-                    "https://uploads.github.com/repos/yuxino/Kiri/releases/55/assets?name="))
-                name = upload.name if upload.name == "provenance.json" else "kiri_1.6.24_amd64.deb"
+                    "https://uploads.github.com/repos/cxq1221/kaka/releases/55/assets?name="))
+                name = upload.name if upload.name == "provenance.json" else "kaka_1.6.24_amd64.deb"
                 asset = next(item for item in self.assets if item["name"] == name)
                 assets.append(copy.deepcopy(asset))
                 return asset
@@ -157,7 +157,7 @@ class CandidateFiles(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.deb = self.root / "kiri_1.6.24_amd64.deb"
+        self.deb = self.root / "kaka_1.6.24_amd64.deb"
         self.deb.write_bytes(b"original package bytes")
         self.provenance = self.root / "provenance.json"
         self.provenance.write_text('{"source_sha":"' + "a" * 40 + '"}\n', encoding="utf-8")
@@ -183,12 +183,12 @@ class CandidateFiles(unittest.TestCase):
         control.mkdir(parents=True)
         control.chmod(0o755)
         for package, version, architecture, accepted in (
-                ("kiri", "1.6.24", "amd64", True), ("other", "1.6.24", "amd64", False),
-                ("kiri", "1.6.23", "amd64", False), ("kiri", "1.6.24", "arm64", False)):
+                ("kaka", "1.6.24", "amd64", True), ("other", "1.6.24", "amd64", False),
+                ("kaka", "1.6.23", "amd64", False), ("kaka", "1.6.24", "arm64", False)):
             with self.subTest(package=package, version=version, architecture=architecture):
                 (control / "control").write_text(
                     f"Package: {package}\nVersion: {version}\nArchitecture: {architecture}\n"
-                    "Maintainer: Kiri Test <test@example.invalid>\nDescription: isolated test fixture\n",
+            "Maintainer: Kaka Test <test@example.invalid>\nDescription: isolated test fixture\n",
                     encoding="utf-8")
                 subprocess.run(["dpkg-deb", "--build", str(control.parent), str(self.deb)],
                                check=True, capture_output=True)
@@ -211,13 +211,13 @@ class CandidateFiles(unittest.TestCase):
                 args.evidence.write_text(json.dumps(evidence), encoding="utf-8")
             return ""
 
-        run = {"id": 123, "repository": {"full_name": "yuxino/Kiri"},
-               "head_repository": {"full_name": "yuxino/Kiri"}, "path": attach.BUILD_WORKFLOW,
+        run = {"id": 123, "repository": {"full_name": "cxq1221/kaka"},
+               "head_repository": {"full_name": "cxq1221/kaka"}, "path": attach.BUILD_WORKFLOW,
                "event": "push", "head_branch": args.tag, "head_sha": "a" * 40,
                "status": "completed", "conclusion": "success"}
         api = lambda endpoint: {"ref": "refs/tags/" + args.tag, "object": {"type": "commit", "sha": "a" * 40}} if "/git/ref/tags/" in endpoint else run
         with patch.object(attach, "command", side_effect=command), self.assertRaisesRegex(RuntimeError, "exactly"):
-            attach.verify_candidate(args, "yuxino/Kiri", "1.6.24", 123, api)
+            attach.verify_candidate(args, "cxq1221/kaka", "1.6.24", 123, api)
 
 
 if __name__ == "__main__":

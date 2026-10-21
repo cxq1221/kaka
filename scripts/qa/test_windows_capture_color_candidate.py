@@ -15,8 +15,8 @@ spec.loader.exec_module(candidate)
 
 class CandidateTests(unittest.TestCase):
     def setUp(self):
-        self.run = {"id": 123, "repository": {"full_name": "yuxino/Kiri"},
-                    "head_repository": {"full_name": "yuxino/Kiri"},
+        self.run = {"id": 123, "repository": {"full_name": "cxq1221/kaka"},
+                    "head_repository": {"full_name": "cxq1221/kaka"},
                     "path": ".github/workflows/build.yml", "event": "workflow_dispatch",
                     "status": "completed", "head_sha": "a" * 40}
         stages = ["Run Windows regression and native video export tests", "Build Windows acceptance installer",
@@ -30,7 +30,7 @@ class CandidateTests(unittest.TestCase):
         candidate.validate(self.run, self.jobs, 123, ["scripts/qa/windows-capture-color-native.py", ".github/workflows/build.yml"])
 
     def test_rejects_wrong_repository_run_and_unfinished_candidates(self):
-        for field, value in [("id", 124), ("head_repository", {"full_name": "fork/Kiri"}),
+        for field, value in [("id", 124), ("head_repository", {"full_name": "fork/Kaka"}),
                              ("event", "pull_request"), ("path", ".github/workflows/other.yml"),
                              ("status", "in_progress"), ("head_sha", "bad")]:
             run = {**self.run, field: value}

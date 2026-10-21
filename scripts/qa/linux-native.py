@@ -1036,7 +1036,7 @@ try:
     # production encoder drains and validates it. Key injection alone is not
     # acknowledgement that the asynchronous pause has finished.
     first_segment = wait_for("pause finalizes the first native segment", lambda: next(iter(
-        recording_files("kiri-recording-*.mp4")), None), timeout=25)
+        recording_files("kaka-recording-*.mp4")), None), timeout=25)
     first_duration = discover_video(first_segment)
     pause(0.2)
     draw_recording_pattern("paused")

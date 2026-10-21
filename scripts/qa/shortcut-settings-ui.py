@@ -451,8 +451,8 @@ async def run_case(browser, url, output, spec):
         if target == "wayland":
             await expect(page.locator('.kiri-shortcut-recorder')).to_have_count(0)
             await expect(page.locator('.kiri-shortcut-command')).to_have_text([
-                "kiri --capture", "kiri --record", "kiri --ocr", "kiri --library",
-                "kiri --toggle-recording-pause", "kiri --stop-recording"])
+                "kaka --capture", "kaka --record", "kaka --ocr", "kaka --library",
+                "kaka --toggle-recording-pause", "kaka --stop-recording"])
             await geometry(page, "system-managed", checks)
         else:
             representative = (target, language, width, height, zoom) in {

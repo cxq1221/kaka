@@ -113,7 +113,7 @@ impl PulseConnection {
             .map(Ok)
             .unwrap_or_else(local_server_address)?;
         validate_local_server(&server)?;
-        let mut context = pulse::context::Context::new(&mainloop, "Kiri audio device check")
+        let mut context = pulse::context::Context::new(&mainloop, "Kaka audio device check")
             .ok_or_else(|| anyhow!(AUDIO_UNAVAILABLE))?;
         context
             .connect(Some(&server), pulse::context::FlagSet::NOAUTOSPAWN, None)
@@ -127,7 +127,7 @@ impl PulseConnection {
             connection.iterate()?;
         }
         if connection.context.is_local() != Some(true) {
-            bail!("Kiri audio recording requires a local sound service.");
+            bail!("Kaka audio recording requires a local sound service.");
         }
         Ok(connection)
     }
@@ -452,7 +452,7 @@ impl NativeCapture {
         };
         for source in sources {
             let mut stream =
-                pulse::stream::Stream::new(&mut connection.context, "Kiri recording", &spec, None)
+                pulse::stream::Stream::new(&mut connection.context, "Kaka recording", &spec, None)
                     .context(AUDIO_UNAVAILABLE)?;
             let overflow = failed.clone();
             stream.set_overflow_callback(Some(Box::new(move || overflow.set(true))));

@@ -14,8 +14,8 @@ test("repository release versions stay aligned", () => {
 });
 
 test("reads Cargo versions with LF or CRLF line endings", () => {
-  const manifest = '[package]\nname = "kiri"\nversion = "1.4.0"\n\n[dependencies]\n';
-  const lock = '[[package]]\nname = "kiri"\nversion = "1.4.0"\n\n[[package]]\nname = "serde"\nversion = "1.0.0"\n';
+  const manifest = '[package]\nname = "kaka"\nversion = "1.4.0"\n\n[dependencies]\n';
+  const lock = '[[package]]\nname = "kaka"\nversion = "1.4.0"\n\n[[package]]\nname = "serde"\nversion = "1.0.0"\n';
   for (const newline of ["\n", "\r\n"]) {
     assert.equal(cargoPackageVersion(manifest.replaceAll("\n", newline)), "1.4.0");
     assert.equal(cargoLockVersion(lock.replaceAll("\n", newline)), "1.4.0");

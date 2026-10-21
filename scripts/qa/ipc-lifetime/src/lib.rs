@@ -71,7 +71,7 @@ mod tests {
         let manager = gio::SimpleAction::new("ipc", Some(glib::VariantTy::STRING));
         let view: View = glib::Object::new();
         *view.imp().observed.borrow_mut() = observed.clone();
-        *view.imp().uri.borrow_mut() = "kiri://localhost/?window=library".into();
+        *view.imp().uri.borrow_mut() = "kaka://localhost/?window=library".into();
         *view.imp().manager.borrow_mut() = Some(manager.clone());
         (view, manager, observed)
     }
@@ -114,8 +114,8 @@ mod tests {
         assert_eq!(
             *observed.delivered.borrow(),
             vec![
-                ("kiri://localhost/?window=library".into(), r#"{"cmd":"get_library"}"#.into()),
-                ("kiri://localhost/?window=library".into(), "second-message".into()),
+                ("kaka://localhost/?window=library".into(), r#"{"cmd":"get_library"}"#.into()),
+                ("kaka://localhost/?window=library".into(), "second-message".into()),
             ]
         );
         assert_eq!(view.ref_count(), before, "callback upgrade must be temporary");
@@ -239,7 +239,7 @@ mod tests {
             "return from callback must release its temporary upgraded owner");
         assert!(weak_view.upgrade().is_none());
         assert_eq!(*observed.delivered.borrow(), vec![(
-            "kiri://localhost/?window=library".into(), "cancel-capture".into()
+            "kaka://localhost/?window=library".into(), "cancel-capture".into()
         )]);
         emit(&manager, "late-after-reentrant-dispose");
         assert_eq!(observed.callbacks.get(), 2);

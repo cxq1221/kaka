@@ -1,4 +1,4 @@
-# Kiri documentation
+# Kaka documentation
 
 This directory contains only documentation that describes the current Tauri
 application or a durable product decision.
@@ -15,13 +15,13 @@ application or a durable product decision.
 
 | Language | Overview | Setup and help | Video editing |
 | --- | --- | --- | --- |
-| 简体中文 | [Kiri](../README.md) | [简体中文](usage.zh-CN.md) | [简体中文](video-editing.zh-CN.md) |
-| English | [Kiri](readme/en.md) | [English](usage.md) | [English](video-editing.md) |
-| 繁體中文 | [Kiri](readme/zh-TW.md) | [繁體中文](usage.zh-TW.md) | [繁體中文](video-editing.zh-TW.md) |
-| 日本語 | [Kiri](readme/ja.md) | [日本語](usage.ja.md) | [日本語](video-editing.ja.md) |
-| Deutsch | [Kiri](readme/de.md) | [Deutsch](usage.de.md) | [Deutsch](video-editing.de.md) |
-| 한국어 | [Kiri](readme/ko.md) | [한국어](usage.ko.md) | [한국어](video-editing.ko.md) |
-| Français | [Kiri](readme/fr.md) | [Français](usage.fr.md) | [Français](video-editing.fr.md) |
+| 简体中文 | [Kaka](../README.md) | [简体中文](usage.zh-CN.md) | [简体中文](video-editing.zh-CN.md) |
+| English | [Kaka](readme/en.md) | [English](usage.md) | [English](video-editing.md) |
+| 繁體中文 | [Kaka](readme/zh-TW.md) | [繁體中文](usage.zh-TW.md) | [繁體中文](video-editing.zh-TW.md) |
+| 日本語 | [Kaka](readme/ja.md) | [日本語](usage.ja.md) | [日本語](video-editing.ja.md) |
+| Deutsch | [Kaka](readme/de.md) | [Deutsch](usage.de.md) | [Deutsch](video-editing.de.md) |
+| 한국어 | [Kaka](readme/ko.md) | [한국어](usage.ko.md) | [한국어](video-editing.ko.md) |
+| Français | [Kaka](readme/fr.md) | [Français](usage.fr.md) | [Français](video-editing.fr.md) |
 
 The user guides cover the same platform boundaries. Architecture, ADRs, detailed
 Linux QA, and contribution records retain their original language.
@@ -137,7 +137,7 @@ development.
 
 - [ADR 0031: Windows update completion](adr/0031-windows-update-relaunch.md)
 
-- [ADR 0032: Localized Kiri installer](adr/0032-localized-kiri-installer.md)
+- [ADR 0032: Localized Kaka installer](adr/0032-localized-kiri-installer.md)
 - [ADR 0033: Shared installer source](adr/0033-shared-installer-source.md)
 
 - [0034 — Local video trimming and microphone checks](adr/0034-local-video-trimming-and-input-check.md) — the historical microphone-test entry is superseded by ADR 0105.
@@ -228,3 +228,5 @@ development.
 - [ADR 0112: Free bidirectional scrolling capture](adr/0112-free-bidirectional-scroll-capture.md) — natural up/down scrolling, verified original-pixel strips, explicit partial saving and platform limits.
 
 - [ADR 0113: Contextual image editor and zoom](adr/0113-contextual-image-editor-and-zoom.md)
+- [ADR 0114: Explicit LanChat screenshot sharing](adr/0114-explicit-lanchat-screenshot-sharing.md)
+  — opt-in local/LAN handoff, strict room discovery, and additive failure behavior.

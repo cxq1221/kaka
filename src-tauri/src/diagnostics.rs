@@ -79,7 +79,7 @@ fn init_windows_logger() {
     }
 
     let mut builder = env_logger::Builder::from_env(
-        env_logger::Env::default().filter_or("RUST_LOG", "warn,kiri_lib=info"),
+        env_logger::Env::default().filter_or("RUST_LOG", "warn,kaka_lib=info"),
     );
     builder.format_timestamp_millis();
 
@@ -110,7 +110,7 @@ fn init_windows_logger() {
 
 #[cfg(windows)]
 pub(crate) fn windows_log_dir() -> Option<PathBuf> {
-    dirs::data_local_dir().map(|dir| dir.join("io.yuxino.kiri").join("logs"))
+    dirs::data_local_dir().map(|dir| dir.join("io.cxq1221.kaka").join("logs"))
 }
 
 #[cfg(windows)]
@@ -118,7 +118,7 @@ fn open_windows_log_file() -> std::io::Result<(File, PathBuf)> {
     let directory = windows_log_dir()
         .ok_or_else(|| std::io::Error::other("Windows local data directory is unavailable"))?;
     std::fs::create_dir_all(&directory)?;
-    let path = directory.join("kiri.log");
+    let path = directory.join("kaka.log");
     rotate_log_if_oversized(&path, WINDOWS_LOG_MAX_BYTES)?;
     let file = OpenOptions::new().create(true).append(true).open(&path)?;
     Ok((file, path))
@@ -147,8 +147,8 @@ mod tests {
     #[test]
     fn persistent_log_keeps_one_previous_bounded_file() {
         let directory = tempfile::tempdir().unwrap();
-        let current = directory.path().join("kiri.log");
-        let previous = directory.path().join("kiri.previous.log");
+        let current = directory.path().join("kaka.log");
+        let previous = directory.path().join("kaka.previous.log");
         std::fs::write(&previous, b"old previous").unwrap();
         std::fs::write(&current, b"new oversized log").unwrap();
 
@@ -161,12 +161,12 @@ mod tests {
     #[test]
     fn persistent_log_does_not_rotate_at_the_limit() {
         let directory = tempfile::tempdir().unwrap();
-        let current = directory.path().join("kiri.log");
+        let current = directory.path().join("kaka.log");
         std::fs::write(&current, b"1234").unwrap();
 
         rotate_log_if_oversized(&current, 4).unwrap();
 
         assert_eq!(std::fs::read(current).unwrap(), b"1234");
-        assert!(!directory.path().join("kiri.previous.log").exists());
+        assert!(!directory.path().join("kaka.previous.log").exists());
     }
 }

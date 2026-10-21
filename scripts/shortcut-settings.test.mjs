@@ -214,7 +214,7 @@ test("window blur cancels recording and native events no longer mutate settings"
 test("Wayland provides all six commands without claiming scoped registration and retains the opt-in Portal panel", async () => {
   const ui = harness({}, snapshot().map((item) => ({ ...item, status: "systemManaged" })));
   await tick(); const tree = ui.page.render();
-  for (const command of ["kiri --capture", "kiri --record", "kiri --ocr", "kiri --library", "kiri --toggle-recording-pause", "kiri --stop-recording"]) assert.ok(text(tree).includes(command));
+  for (const command of ["kaka --capture", "kaka --record", "kaka --ocr", "kaka --library", "kaka --toggle-recording-pause", "kaka --stop-recording"]) assert.ok(text(tree).includes(command));
   assert.equal(recorder(tree), undefined);
   assert.equal(text(tree).includes("Only active while recording."), false);
   assert.ok(nodes(tree).some((node) => node?.type === "portal-shortcuts"));

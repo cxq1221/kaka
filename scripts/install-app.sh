@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build and update one canonical Kiri installation without silently changing
+# Build and update one canonical Kaka installation without silently changing
 # the macOS code identity that owns its privacy grants.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
-BUILD_APP="${KIRI_BUILD_APP:-$PROJECT_DIR/src-tauri/target/release/bundle/macos/kiri.app}"
-INSTALL_APP="${KIRI_INSTALL_PATH:-/Applications/Kiri.app}"
-EXPECTED_IDENTIFIER="io.yuxino.kiri"
+BUILD_APP="${KIRI_BUILD_APP:-$PROJECT_DIR/src-tauri/target/release/bundle/macos/Kaka.app}"
+INSTALL_APP="${KAKA_INSTALL_PATH:-/Applications/Kaka.app}"
+EXPECTED_IDENTIFIER="io.cxq1221.kaka"
 
 case "$INSTALL_APP" in
   /*/*.app) ;;
-  *) echo "install-app: KIRI_INSTALL_PATH must be an absolute .app path" >&2; exit 2 ;;
+  *) echo "install-app: KAKA_INSTALL_PATH must be an absolute .app path" >&2; exit 2 ;;
 esac
 [[ ! -L "$INSTALL_APP" ]] || {
   echo "install-app: the canonical app path cannot be a symbolic link" >&2
@@ -38,7 +38,7 @@ designated_requirement() {
     | /usr/bin/sed -n 's/^#*[[:space:]]*designated => //p'
 }
 
-verify_kiri_app() {
+verify_kaka_app() {
   local app="$1"
   local requirement
   [[ -d "$app" && ! -L "$app" ]] || return 1
@@ -62,8 +62,8 @@ else
   }
   echo "install-app: using prebuilt package for exact-artifact acceptance"
 fi
-verify_kiri_app "$BUILD_APP" || {
-  echo "install-app: packaged Kiri is unsigned, ad-hoc, or otherwise invalid" >&2
+verify_kaka_app "$BUILD_APP" || {
+  echo "install-app: packaged Kaka is unsigned, ad-hoc, or otherwise invalid" >&2
   exit 1
 }
 new_requirement="$(designated_requirement "$BUILD_APP")"
@@ -74,10 +74,10 @@ if [[ -e "$INSTALL_APP" && ! -d "$INSTALL_APP" ]]; then
 fi
 if [[ -d "$INSTALL_APP" ]]; then
   existing_requirement="$(designated_requirement "$INSTALL_APP" || true)"
-  if ! verify_kiri_app "$INSTALL_APP" || [[ "$existing_requirement" != "$new_requirement" ]]; then
+  if ! verify_kaka_app "$INSTALL_APP" || [[ "$existing_requirement" != "$new_requirement" ]]; then
     if [[ "${KIRI_ALLOW_IDENTITY_CHANGE:-0}" != "1" ]]; then
       cat >&2 <<EOF
-install-app: refusing to replace Kiri with a different macOS code identity.
+install-app: refusing to replace Kaka with a different macOS code identity.
 
 Installed: ${existing_requirement:-<invalid or unsigned>}
 New:       $new_requirement
@@ -91,15 +91,15 @@ EOF
   fi
 fi
 
-running_pids="$(/usr/bin/pgrep -U "$(/usr/bin/id -u)" -x kiri || true)"
+running_pids="$(/usr/bin/pgrep -U "$(/usr/bin/id -u)" -x kaka || true)"
 if [[ -n "$running_pids" ]]; then
-  echo "install-app: quit every running Kiri copy before installing (PID ${running_pids//$'\n'/, })" >&2
+  echo "install-app: quit every running Kaka copy before installing (PID ${running_pids//$'\n'/, })" >&2
   exit 1
 fi
 
-staging_dir="$(/usr/bin/mktemp -d "$install_parent/.kiri-install.XXXXXX")"
+staging_dir="$(/usr/bin/mktemp -d "$install_parent/.kaka-install.XXXXXX")"
 case "$staging_dir" in
-  "$install_parent"/.kiri-install.*) ;;
+  "$install_parent"/.kaka-install.*) ;;
   *) echo "install-app: unexpected staging path: $staging_dir" >&2; exit 1 ;;
 esac
 staged_app="$staging_dir/new.app"
@@ -119,7 +119,7 @@ cleanup() {
 trap cleanup EXIT
 
 /usr/bin/ditto "$BUILD_APP" "$staged_app"
-verify_kiri_app "$staged_app" || {
+verify_kaka_app "$staged_app" || {
   echo "install-app: staged app failed signature verification" >&2
   exit 1
 }
@@ -137,7 +137,7 @@ if ! /bin/mv "$staged_app" "$INSTALL_APP"; then
   exit 1
 fi
 
-if ! verify_kiri_app "$INSTALL_APP" \
+if ! verify_kaka_app "$INSTALL_APP" \
   || [[ "$(designated_requirement "$INSTALL_APP")" != "$new_requirement" ]]; then
   /bin/rm -rf "$INSTALL_APP"
   [[ ! -d "$previous_app" ]] || /bin/mv "$previous_app" "$INSTALL_APP"
@@ -147,5 +147,5 @@ fi
 
 install_committed=1
 /bin/rm -rf "$previous_app"
-echo "installed stable Kiri app: $INSTALL_APP"
+echo "installed stable Kaka app: $INSTALL_APP"
 echo "designated requirement: $new_requirement"

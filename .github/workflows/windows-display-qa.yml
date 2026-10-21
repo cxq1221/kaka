@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Published Kiri version to verify
+        description: Published Kaka version to verify
         default: v1.6.2
         required: true
       installer_sha256:
@@ -51,19 +51,19 @@ jobs:
           python -m pip install pywinauto==0.6.9 Pillow==11.3.0
           $installer = Join-Path $env:RUNNER_TEMP 'kiri-baseline.exe'
           $version = $env:KIRI_QA_TAG.Substring(1)
-          Invoke-WebRequest "https://github.com/yuxino/kiri/releases/download/$($env:KIRI_QA_TAG)/kiri_$($version)_x64-setup.exe" -OutFile $installer
+          Invoke-WebRequest "https://github.com/cxq1221/kaka/releases/download/$($env:KIRI_QA_TAG)/kaka_$($version)_x64-setup.exe" -OutFile $installer
           if ((Get-FileHash $installer).Hash -ne $env:KIRI_QA_SHA256) { throw 'Installer checksum mismatch' }
           $install = Join-Path $env:RUNNER_TEMP 'kiri-baseline'
           $p = Start-Process $installer -ArgumentList @('/S', "/D=$install") -PassThru -Wait
           if ($p.ExitCode -ne 0) { throw "Installer failed: $($p.ExitCode)" }
-          $env:KIRI_QA_EXE = Join-Path $install 'kiri.exe'
+          $env:KIRI_QA_EXE = Join-Path $install 'kaka.exe'
           python scripts/qa/windows-display-native.py
       - name: Preserve application diagnostics even after a timeout
         if: always()
         run: |
-          $log = Join-Path $env:LOCALAPPDATA 'io.yuxino.kiri/logs/kiri.log'
-          if (Test-Path $log) { Copy-Item $log windows-display-review/kiri.log }
-          Get-Process kiri -ErrorAction SilentlyContinue | Select-Object Id, Responding, CPU, WorkingSet | ConvertTo-Json | Out-File windows-display-review/process.json
+          $log = Join-Path $env:LOCALAPPDATA 'io.cxq1221.kaka/logs/kaka.log'
+          if (Test-Path $log) { Copy-Item $log windows-display-review/kaka.log }
+          Get-Process kaka -ErrorAction SilentlyContinue | Select-Object Id, Responding, CPU, WorkingSet | ConvertTo-Json | Out-File windows-display-review/process.json
       - uses: actions/upload-artifact@v7
         if: always()
         with:

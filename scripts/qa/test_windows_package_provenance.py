@@ -29,7 +29,7 @@ class AcceptedCandidate(unittest.TestCase):
         self.validate()
 
     def test_accepts_official_repository_display_casing(self):
-        for name in ("yuxino/Kiri", "YUXINO/KIRI"):
+        for name in ("cxq1221/kaka", "CXQ1221/KAKA"):
             with self.subTest(name=name):
                 self.run["repository"]["full_name"] = name
                 self.run["head_repository"]["full_name"] = name
@@ -47,7 +47,7 @@ class AcceptedCandidate(unittest.TestCase):
 
     def test_rejects_similar_or_malformed_repository_names(self):
         for key in ("repository", "head_repository"):
-            for name in (None, 123, "yuxino/Kiri-other", "other/Kiri", "yuxino/Kiri"):
+            for name in (None, 123, "cxq1221/kaka-other", "other/Kaka", "cxq1221/Kaka"):
                 with self.subTest(key=key, name=name):
                     original = copy.deepcopy(self.run)
                     self.run[key]["full_name"] = name
@@ -99,9 +99,9 @@ class CandidateArtifact(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.directory = Path(self.temporary.name)
         self.tag = "v1.6.15"
-        self.installer = "kiri_1.6.15_x64-setup.exe"
+        self.installer = "kaka_1.6.15_x64-setup.exe"
         self.signature = self.installer + ".sig"
-        self.portable = "Kiri-1.6.15-Windows-x64-Portable.zip"
+        self.portable = "Kaka-1.6.15-Windows-x64-Portable.zip"
         self.payloads = {self.installer: b"accepted installer bytes", self.signature: b"public signature bytes"}
         for name, payload in self.payloads.items():
             (self.directory / name).write_bytes(payload)
@@ -132,8 +132,8 @@ class CandidateArtifact(unittest.TestCase):
                 (self.directory / name).write_bytes(payload)
 
     def test_rejects_extra_packages_and_unknown_files(self):
-        for name in ("Kiri-1.6.14-Windows-x64-Portable.zip", "Kiri-1.6.15-Windows-arm64-Portable.zip",
-                     "kiri_1.6.14_x64-setup.exe", "another-setup.exe", self.portable + ".sig",
+        for name in ("Kaka-1.6.14-Windows-x64-Portable.zip", "Kiri-1.6.15-Windows-arm64-Portable.zip",
+                     "kaka_1.6.14_x64-setup.exe", "another-setup.exe", self.portable + ".sig",
                      "windows-provenance.json", "README.txt"):
             with self.subTest(name=name):
                 extra = self.directory / name

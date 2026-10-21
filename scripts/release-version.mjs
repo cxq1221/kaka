@@ -23,9 +23,9 @@ export function cargoLockVersion(contents) {
   const packageBlock = contents
     .replaceAll("\r\n", "\n")
     .split(/\n(?=\[\[package\]\]\n)/)
-    .find((block) => /^\[\[package\]\]\s*$[\s\S]*?^name\s*=\s*"kiri"\s*$/m.test(block));
+    .find((block) => /^\[\[package\]\]\s*$[\s\S]*?^name\s*=\s*"kaka"\s*$/m.test(block));
   const version = packageBlock?.match(/^version\s*=\s*"([^"]+)"\s*$/m)?.[1];
-  if (!version) throw new Error("Could not read the kiri version from src-tauri/Cargo.lock.");
+  if (!version) throw new Error("Could not read the kaka version from src-tauri/Cargo.lock.");
   return version;
 }
 

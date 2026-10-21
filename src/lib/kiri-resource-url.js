@@ -50,7 +50,7 @@ function checkedSegment(segment) {
 }
 
 /**
- * Builds a platform-correct URL for the private `kiri` protocol.
+ * Builds a platform-correct URL for the private `kaka` protocol.
  * Tauri percent-encodes the complete route and uses an HTTP origin on Windows,
  * so query parameters are appended only after the platform conversion.
  */
@@ -64,7 +64,7 @@ export function kiriResourceUrl(route, segments = [], query) {
     checkedSegment(key);
     encodedQuery.append(key, String(value));
   }
-  const converted = convertFileSrc(joinedRoute, "kiri");
+  const converted = convertFileSrc(joinedRoute, "kaka");
   const suffix = encodedQuery.toString();
   return suffix ? `${converted}?${suffix}` : converted;
 }

@@ -1,8 +1,8 @@
-# Kiri architecture
+# Kaka architecture
 
 Status: current for the Tauri 2 application.
 
-Kiri is a local-first desktop capture workspace for macOS, Windows, and
+Kaka is a local-first desktop capture workspace for macOS, Windows, and
 Linux. React renders the application windows, Rust owns capture,
 persistence, credentials, network access, and platform integration, and Tauri
 provides the window and IPC boundary.
@@ -115,7 +115,7 @@ reads after a newer change. See ADR 0079.
 
 1. The native global shortcut asks Rust to start a capture session and records
    the previously focused application. Registration needs no TCC permission;
-   a conflicting binding leaves Kiri running and is surfaced in Settings for
+   a conflicting binding leaves Kaka running and is surfaced in Settings for
    retry or replacement. Settings records native-library-supported physical key
    codes with optional modifiers and can restore the default. F1–F24, media keys,
    and Control/Alt/Meta combinations save directly; other bare or Shift-only keys
@@ -141,7 +141,7 @@ reads after a newer change. See ADR 0079.
    Linux freezes the display on a worker thread, then creates the overlay on
    the GTK main thread. X11 uses the native shortcut plugin. Wayland does not
    claim a successful XWayland grab or modify compositor bindings: users
-   configure `kiri --capture` as a desktop shortcut. Supporting desktops also
+   configure `kaka --capture` as a desktop shortcut. Supporting desktops also
    offer explicit GlobalShortcuts Portal setup in Settings, with actual returned
    bindings and a dedicated identity-registered session actor (ADR 0075).
    Command guidance remains available on every Wayland desktop. Single-instance dispatch
@@ -157,27 +157,27 @@ reads after a newer change. See ADR 0079.
    portal (GNOME). Wayland supplies no window hit-test bounds. Frozen-image
    dimensions and monitor geometry must agree; multi-display Wayland capture
    remains unavailable rather than mapping a selection to an uncertain screen.
-   Before freezing the Windows desktop, Kiri hides its library without a DWM
+   Before freezing the Windows desktop, Kaka hides its library without a DWM
    transition, acknowledges the UI operation, and flushes the compositor. Failed
    hiding restores prior visibility and cancels capture (ADR 0107).
    Capture startup is single-flight, so a repeated shortcut cannot enter a
    second native freeze. Windows gives the desktop frame eight seconds to
    arrive, then uses fast lossless PNG encoding and a direct
    `EnumWindows`/DWM collector for window hit-test bounds. The collector
-   excludes Kiri's own process before querying window metadata.
+   excludes Kaka's own process before querying window metadata.
    Post-processing logs a warning after thirty seconds without abandoning an
-   already captured frame. Stage-specific failures remain visible, and Kiri
+   already captured frame. Stage-specific failures remain visible, and Kaka
    will not accumulate replacement workers while the original worker is still
    active.
 3. Rust keeps one reference-counted allocation for the full frozen PNG and
    shares it with the session, OCR preparation, and custom protocol. The
-   overlay receives a capture-scoped, unguessable `kiri://` URL. The image is
+   overlay receives a capture-scoped, unguessable `kaka://` URL. The image is
    not written to disk.
 4. The overlay performs window hit testing, region selection, and annotation in
    a fixed logical document coordinate space. macOS includes visible third-party
    floating panels, including subtitle overlays, in addition to normal windows.
    Window level and Quartz stacking order determine the frontmost candidate;
-   fully transparent helpers, desktop layers, and Kiri's own windows are excluded
+   fully transparent helpers, desktop layers, and Kaka's own windows are excluded
    (ADR 0106).
 5. Screenshot confirmation stages the validated annotation document and sends
    the rendered selected PNG with an owner-bound one-time token. Rust validates
@@ -220,9 +220,9 @@ and keyboard handling. The parent is released when that child is destroyed;
 resident feedback windows reuse one parent. Before synchronizing a reused
 parent’s frame, detach the child so AppKit does not move it twice. After
 applying the full-screen collection behavior, the windows are reordered at
-their existing high window level without activating Kiri. See ADR 0047.
+their existing high window level without activating Kaka. See ADR 0047.
 In particular, a global capture shortcut pressed over a full-screen video must not switch back to
-Kiri's ordinary Space merely to present the capture overlay. The overlay
+Kaka's ordinary Space merely to present the capture overlay. The overlay
 becomes normally interactive when clicked. Display coordinates use the fixed
 Core Graphics main-display baseline rather than the current key window's
 screen. Windows retains the selected monitor's
@@ -230,7 +230,7 @@ virtual-desktop origin so a secondary-display capture is not shown on the
 primary display.
 
 Recording startup failures return only their current session to idle and present
-a persistent failure card on the capture display without activating Kiri. Known
+a persistent failure card on the capture display without activating Kaka. Known
 device/display recovery guidance is localized; raw native errors stay in logs.
 A failure with no saved asset offers Open Library instead of a GIF retry. Windows
 queries optional capture-border control before disabling the system indicator;
@@ -326,7 +326,7 @@ until their first annotated editor save.
 An editor-only command loads one content-addressed snapshot. Its revision binds
 the current flattened bytes, the exact presence and bytes of the document and
 source files, and whether the project is absent, valid, or invalid. The editor
-loads its image through `kiri://annotation-source/<uuid>?revision=<sha256>`;
+loads its image through `kaka://annotation-source/<uuid>?revision=<sha256>`;
 the protocol returns the exact source from a newly verified matching snapshot,
 not a path that can change between validation and reading. Valid projects use
 the clean source and persisted marks. Missing or invalid projects use the
@@ -473,7 +473,7 @@ parsing. See [ADR 0086](adr/0086-library-file-actions.md).
 The default root is created in the operating-system application-data location
 only when no saved library exists. After that, any remembered root is accepted
 only when its marker matches the saved library. If the root is unavailable, the
-context stays offline; Kiri neither creates a replacement there nor silently
+context stays offline; Kaka neither creates a replacement there nor silently
 opens another library. Capture and recording starts are blocked until the user
 retries or locates the existing library. Returning to the default location
 requires the active library to be available and uses the same verified
@@ -527,6 +527,33 @@ and [ADR 0063](adr/0063-qr-center-markers-and-supported-geometry.md).
 automatic saving, content labels and one-action browser handoff.
 [ADR 0068](adr/0068-qr-markers-in-saved-image-editor.md) extends original-image
 markers to the editor and library menu while preserving pending edits.
+
+## LanChat screenshot sharing
+
+The completion card and image-library menu offer an explicit **Send to
+LanChat** action. The renderer sends only the managed asset id through IPC.
+`lanchat_share.rs` resolves the active image in Rust, reads the flattened file,
+discovers a room, and performs the upload; frontend windows never receive a
+filesystem path, cookie, or direct HTTP capability.
+
+Discovery checks `/api/health` on loopback ports `81` and `8787`. Settings may
+persist one custom `http://` origin, but only loopback or private-network hosts
+without credentials, paths, queries, or fragments are accepted. A room must
+return `product: "lan-chat"`, `protocol: 1`, valid room and instance UUIDs, and
+the health port must match the candidate origin. Probe timeouts are short and
+parallel so a missing local service does not stall the action.
+
+Upload uses `POST /api/files` with the exact image bytes,
+`Content-Type: application/octet-stream`, and a UTF-8 percent-encoded
+`X-File-Name`. The optional `lan_identity` cookie is persisted in
+`lanchat-share.json` under the app configuration directory and reused only for
+the same room UUID. The transport is plain HTTP by design for a trusted local
+network; see ADR 0114 and the privacy policy for the boundary.
+
+Sharing is additive to the capture lifecycle. Clipboard copy and library
+persistence have already completed before the action appears. Probe, protocol,
+timeout, file, and upload failures return localized feedback and never delete or
+modify the asset.
 
 ## OCR flow
 
@@ -606,7 +633,7 @@ No platform resolves, downloads, or launches an external media encoder.
 The recording panel explicitly chooses the final MP4 or GIF output before
 capture starts; existing saved options without this field default to MP4. GIF
 output disables audio for that recording session without erasing the user's
-saved MP4 audio preferences. After the MP4 staging file is finalized, Kiri
+saved MP4 audio preferences. After the MP4 staging file is finalized, Kaka
 converts it locally to a looping, silent GIF at 12 fps with a 720-pixel long
 edge. Windows decodes the staging MP4 with Media Foundation and encodes the GIF
 inside the application; macOS decodes one scaled AVAssetImageGenerator frame at a time and writes it
@@ -623,7 +650,7 @@ including repeated failures. The library subscribes before fetching an active
 conversion snapshot so opening it during conversion restores the current state
 without overwriting newer events (ADR 0077). There is no duration cutoff for a
 recording with a positive known duration. If GIF encoding or import fails,
-Kiri imports the valid MP4 staging file instead of losing the recording. The
+Kaka imports the valid MP4 staging file instead of losing the recording. The
 native recording session returns to idle and restores the source application's
 focus before long merge/GIF work, so background finalization does not block the
 next capture. Native finalization errors fail closed and preserve a recoverable
@@ -659,7 +686,7 @@ callbacks are gated. macOS pause closes the current segment and resume starts a
 compatible segment; stop merges those segments into one library asset. If a
 live segment loses integrity, previously completed segments are moved out of
 cleanup ownership and imported as a partial recording. AVFoundation validates
-and losslessly exports macOS segments as one MP4. Kiri control windows are excluded from exported frames,
+and losslessly exports macOS segments as one MP4. Kaka control windows are excluded from exported frames,
 while an enabled click-ripple window is intentionally included.
 
 The macOS and Windows recording control panel is shown without taking keyboard
@@ -672,14 +699,14 @@ that the user explicitly confirms in Settings (ADR 0111).
 Linux uses the same recording-scoped native shortcuts on X11, desktop-managed
 Wayland bindings, tray pause/resume/stop actions, or the explicit
 `--toggle-recording-pause` and `--stop-recording` commands. Wayland command and
-Portal keys may remain reserved by the desktop while Kiri is idle; Kiri only
+Portal keys may remain reserved by the desktop while Kaka is idle; Kaka only
 guards whether a recording action can execute. Its floating control panel is
 suppressed because portal capture cannot exclude it reliably. Optional
 system audio and microphone recording use the local PulseAudio-compatible
 service; click highlights remain unavailable.
 
 If a valid finalized MP4 cannot be imported because the active library is
-unavailable or rejects the write, Kiri moves it into a local recovery area
+unavailable or rejects the write, Kaka moves it into a local recovery area
 with a manifest. The library exposes the pending count and a retry action.
 Recovery files are removed only after a durable import.
 
@@ -699,7 +726,7 @@ recording, recovery validation, thumbnails, and MP4-to-GIF conversion. macOS
 uses AVFoundation for recording, decoding and pause-segment merging, ImageIO
 for thumbnails, and the streaming Rust GIF encoder. Linux WebKitGTK video playback uses a process-scoped loopback HTTP capability
 with bounded streaming and validated asset IDs/ranges (ADR 0069), because its
-media decoder rejects custom `kiri` URIs. Images keep the private protocol.
+media decoder rejects custom `kaka` URIs. Images keep the private protocol.
 
 Linux uses system GStreamer plugins for PipeWire ScreenCast capture,
 H.264 MP4 encoding, thumbnails, and GIF export. No platform downloads or
@@ -721,7 +748,7 @@ activation after five minutes, without a periodic timer. Existing available or
 downloaded updates are retained rather than replaced by focus checks. Settings
 also offers an explicit check. A visible New update label beside Settings appears only when
 an update is available; offline failures remain quiet. See ADR 0099.
-The configured endpoint and updater public key are compiled into Kiri; release
+The configured endpoint and updater public key are compiled into Kaka; release
 notes can supply display text but never an executable path, alternate endpoint,
 or public key.
 
@@ -730,7 +757,7 @@ uses the plugin's actual byte events and stays indeterminate when the server
 does not provide a length. The downloaded platform archive must pass minisign
 verification before the UI reaches its install-ready state. On macOS,
 installation returns to Settings and a further explicit action relaunches the
-app. On Windows, installation launches the passive NSIS updater and exits Kiri;
+app. On Windows, installation launches the passive NSIS updater and exits Kaka;
 the interface does not promise an in-app restart step. The fixed GitHub
 Releases page is exposed only as recovery after an updater failure.
 
@@ -772,12 +799,12 @@ display without taking focus and is protected/excluded from subsequent captures.
 
 ## Persistence boundaries
 
-- The default macOS library is `~/Library/Application Support/kiri`; the
-  default Windows library is `%APPDATA%\\kiri`; Linux uses `$XDG_DATA_HOME/kiri`
-  or `~/.local/share/kiri`. Settings may move the one active
+- The default macOS library is `~/Library/Application Support/kaka`; the
+  default Windows library is `%APPDATA%\\kaka`; Linux uses `$XDG_DATA_HOME/kaka`
+  or `~/.local/share/kaka`. Settings may move the one active
   library to another local directory or external disk.
 - The active root contains a schema/version marker, library UUID, and copy
-  generation. A saved custom location must match that marker before Kiri loads
+  generation. A saved custom location must match that marker before Kaka loads
   its index; each migration changes the generation while preserving lineage.
 - Assets are indexed by `library.json`; Trash is recoverable and never empties
   automatically.
@@ -922,9 +949,9 @@ not required for these checks. Hardware-specific drivers and consumer Windows
 permission behavior remain outside the hosted runner's coverage.
 The desktop check repeats click and Escape countdown cancellation three times
 each before recording, pausing, resuming and stopping. On failure, its isolated
-runner retains Kiri-specific Windows crash events and minidumps; the matching
+runner retains Kaka-specific Windows crash events and minidumps; the matching
 optimized executable and debug symbols are kept separately for diagnosis.
-Kiri carries Wry's upstream Windows controller-teardown fix on the 0.55 series
+Kaka carries Wry's upstream Windows controller-teardown fix on the 0.55 series
 required by Tauri 2.11. The parent-window subclass is removed before its
 controller reference is released, preventing nested messages from accessing
 freed controller data. See `src-tauri/vendor/README.md` for provenance and the
@@ -973,7 +1000,7 @@ audio devices. Device selection and recording resolve the local
 PulseAudio-compatible service, including PipeWire's Pulse service. System audio
 is the default output's verified monitor; microphone capture uses the selected
 non-monitor input, or the default input when no device is explicitly selected.
-Kiri never substitutes one source type for the other, silently replaces a missing
+Kaka never substitutes one source type for the other, silently replaces a missing
 selected microphone, or changes sound settings.
 
 Recording starts the audio branches with the first accepted video frame. The

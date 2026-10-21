@@ -13,7 +13,7 @@ def configure_crash_capture(output: Path):
     dump_dir = (output / "crash-dumps").resolve()
     dump_dir.mkdir(exist_ok=True)
     # Per-application WER settings; never enable system-wide dump collection.
-    key_path = r"SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\kiri.exe"
+    key_path = r"SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\kaka.exe"
     with winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_SET_VALUE) as key:
         winreg.SetValueEx(key, "DumpFolder", 0, winreg.REG_EXPAND_SZ, str(dump_dir))
         winreg.SetValueEx(key, "DumpType", 0, winreg.REG_DWORD, 1)

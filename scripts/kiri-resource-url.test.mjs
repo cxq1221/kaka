@@ -21,20 +21,20 @@ beforeEach(() => {
 test("Linux video bridge is limited to the IPC-provided numeric loopback capability", () => {
   const id = "00000000-0000-4000-8000-000000000000";
   const origin = "http://127.0.0.1:45321/0123456789abcdef0123456789abcdef/media";
-  assert.equal(videoResourceUrl(id), `http://kiri.localhost/${encodeURIComponent(`media/${id}`)}`);
+  assert.equal(videoResourceUrl(id), `http://kaka.localhost/${encodeURIComponent(`media/${id}`)}`);
   configureVideoPlaybackOrigin(origin);
   assert.equal(videoResourceUrl(id), `${origin}/${id}`);
   assert.equal(videoResourceCrossOrigin(videoResourceUrl(id)), undefined);
-  for (const source of [`kiri://media/${id}`, `http://kiri.localhost/media/${id}`, `http://127.0.0.1:45321/public.mp4`, `https://example.org/video.mp4`]) {
+  for (const source of [`kaka://media/${id}`, `http://kaka.localhost/media/${id}`, `http://127.0.0.1:45321/public.mp4`, `https://example.org/video.mp4`]) {
     assert.equal(videoResourceCrossOrigin(source), "anonymous");
   }
-  assert.equal(kiriResourceUrl("media", [id]), `http://kiri.localhost/${encodeURIComponent(`media/${id}`)}`);
+  assert.equal(kiriResourceUrl("media", [id]), `http://kaka.localhost/${encodeURIComponent(`media/${id}`)}`);
   for (const invalid of [origin.replace("127.0.0.1", "localhost"), origin.replace("127.0.0.1", "evil.example"), origin.replace("45321", "65536"), `${origin}?file=/etc/passwd`, origin.replace("0123456789abcdef0123456789abcdef", "guessable")]) {
     assert.throws(() => configureVideoPlaybackOrigin(invalid), TypeError);
   }
   assert.throws(() => videoResourceUrl("../private"), TypeError);
   configureVideoPlaybackOrigin(null);
-  assert.equal(videoResourceUrl(id), `http://kiri.localhost/${encodeURIComponent(`media/${id}`)}`);
+  assert.equal(videoResourceUrl(id), `http://kaka.localhost/${encodeURIComponent(`media/${id}`)}`);
 });
 
 afterEach(() => {
@@ -54,14 +54,14 @@ test("converts each complete non-empty private resource route", () => {
     const joined = [route, ...segments].join("/");
     assert.equal(
       kiriResourceUrl(route, segments),
-      `http://kiri.localhost/${encodeURIComponent(joined)}`,
+      `http://kaka.localhost/${encodeURIComponent(joined)}`,
     );
   }
   assert.deepEqual(
     calls,
     cases.map(([route, segments]) => ({
       route: [route, ...segments].join("/"),
-      protocol: "kiri",
+      protocol: "kaka",
     })),
   );
 
@@ -75,14 +75,14 @@ test("converts each complete non-empty private resource route", () => {
     const joined = [route, ...segments].join("/");
     assert.equal(
       kiriResourceUrl(route, segments),
-      `kiri://localhost/${encodeURIComponent(joined)}`,
+      `kaka://localhost/${encodeURIComponent(joined)}`,
     );
   }
   assert.deepEqual(
     calls,
     cases.map(([route, segments]) => ({
       route: [route, ...segments].join("/"),
-      protocol: "kiri",
+      protocol: "kaka",
     })),
   );
 });
@@ -96,7 +96,7 @@ test("appends encoded query parameters after route conversion", () => {
       ["00000000-0000-4000-8000-000000000000"],
       { revision, page: 2 },
     ),
-    `http://kiri.localhost/${encodeURIComponent(joined)}?revision=${revision}&page=2`,
+    `http://kaka.localhost/${encodeURIComponent(joined)}?revision=${revision}&page=2`,
   );
   assert.equal(calls.length, 1);
 });

@@ -1,4 +1,4 @@
-# Ein Video in Kiri bearbeiten
+# Ein Video in Kaka bearbeiten
 
 [简体中文](video-editing.zh-CN.md) · [English](video-editing.md) · [繁體中文](video-editing.zh-TW.md) · [日本語](video-editing.ja.md) · **Deutsch** · [한국어](video-editing.ko.md) · [Français](video-editing.fr.md)
 
@@ -10,7 +10,7 @@ Ein Projekt bearbeitet ein Quellvideo. Sie können es in Clips teilen und umordn
 
 ## Aufnahme oder lokale Datei importieren
 
-Kiri-Aufnahmen erscheinen in der Bibliothek. Für andere Dateien wählen Sie „Medien importieren“ oder ziehen PNG-, JPEG-, WebP-, MP4- oder MOV-Dateien in die Bibliothek. Bilder öffnen den Bildeditor, Videos den Videoeditor.
+Kaka-Aufnahmen erscheinen in der Bibliothek. Für andere Dateien wählen Sie „Medien importieren“ oder ziehen PNG-, JPEG-, WebP-, MP4- oder MOV-Dateien in die Bibliothek. Bilder öffnen den Bildeditor, Videos den Videoeditor.
 
 Importe behalten den ursprünglichen Namen und erscheinen nach dem Löschen der Filter oben in der Bibliothek. Bilder werden mit ihrer Ausrichtung in PNG umgewandelt; Videos werden kopiert. Originaldateien bleiben unverändert. Pro Import sind bis zu 32 Dateien möglich. Bilder müssen in die Speichergrenze des Decoders passen, höchstens 32 MB groß sein und keine Seite über 8192 Pixel haben. Videos sind auf 8 GB begrenzt.
 
@@ -53,6 +53,6 @@ Wählen Sie „Exportieren“ oben rechts. Das Qualitätsmenü zeigt die tatsäc
 
 Kleine Quellen werden nie vergrößert. Die Dateigröße hängt von Quelle und bearbeiteter Dauer ab. Der Export erstellt eine Bibliothekskopie, zeigt den Kodierfortschritt und lässt sich vor dem abschließenden Speichern abbrechen. Ein Abbruch behält Ihr Projekt und fügt kein unfertiges Video hinzu.
 
-Exporte behalten synchronen Ton. Linux normalisiert auf 48 kHz Stereo-AAC, wendet die Videoausrichtung an und bewahrt variable Bildraten sowie gehaltene Bilder mit ihren Anzeigedauern. macOS erhält bei Geschwindigkeitsänderungen die Tonhöhe; Windows ändert sie mit der Geschwindigkeit. Videoeffekte auf Windows erfordern derzeit Quellen ohne Rotationsmetadaten. Kiri-Aufnahmen erfüllen diese Voraussetzung.
+Exporte behalten synchronen Ton. Linux normalisiert auf 48 kHz Stereo-AAC, wendet die Videoausrichtung an und bewahrt variable Bildraten sowie gehaltene Bilder mit ihren Anzeigedauern. macOS erhält bei Geschwindigkeitsänderungen die Tonhöhe; Windows ändert sie mit der Geschwindigkeit. Videoeffekte auf Windows erfordern derzeit Quellen ohne Rotationsmetadaten. Kaka-Aufnahmen erfüllen diese Voraussetzung.
 
-[Benutzung](usage.de.md) · [Zurück zu Kiri](readme/de.md)
+[Benutzung](usage.de.md) · [Zurück zu Kaka](readme/de.md)

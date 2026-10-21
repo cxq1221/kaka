@@ -1,18 +1,19 @@
 <div align="center">
-  <img src="../../src-tauri/icons/128x128.png" width="112" alt="Kiri">
-  <h1>Kiri</h1>
-  <p>스크린샷, 문자 인식, 화면 녹화. 캡처한 자료는 컴퓨터에 저장됩니다.</p>
+  <img src="../../src-tauri/icons/128x128.png" width="112" alt="Kaka">
+  <h1>Kaka</h1>
+  <p>스크린샷, 문자 인식, 화면 녹화. 캡처한 자료는 직접 공유하지 않는 한 컴퓨터에 저장됩니다.</p>
   <p>macOS, Windows, Linux를 지원합니다.</p>
-  <p><a href="https://kiri.yuxino.cn">공식 웹사이트</a> · <a href="https://github.com/yuxino/kiri/releases/latest">최신 버전 다운로드</a></p>
+  <p><a href="https://github.com/yuxino/Kiri">Kiri</a>에서 독립적으로 분기한 프로젝트입니다.</p>
+  <p><a href="https://github.com/cxq1221/kaka">GitHub</a> · <a href="https://github.com/cxq1221/kaka/releases/latest">최신 버전 다운로드</a></p>
   <p><a href="../../README.md">简体中文</a> · <a href="en.md">English</a> · <a href="zh-TW.md">繁體中文</a> · <a href="ja.md">日本語</a> · <a href="de.md">Deutsch</a> · <strong>한국어</strong> · <a href="fr.md">Français</a></p>
   <p>
-    <a href="https://github.com/yuxino/kiri/releases/latest"><img src="https://img.shields.io/github/v/release/yuxino/kiri?style=flat&amp;logo=github&amp;logoColor=white" alt="Release"></a>
-    <a href="https://github.com/yuxino/kiri/actions/workflows/build.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/yuxino/kiri/build.yml?style=flat&amp;logo=githubactions&amp;logoColor=white&amp;branch=main&amp;event=push&amp;label=CI" alt="CI"></a>
-    <a href="../../LICENSE"><img src="https://img.shields.io/github/license/yuxino/kiri?style=flat&amp;logo=opensourceinitiative&amp;logoColor=white" alt="MIT"></a>
+    <a href="https://github.com/cxq1221/kaka/releases/latest"><img src="https://img.shields.io/github/v/release/cxq1221/kaka?style=flat&amp;logo=github&amp;logoColor=white" alt="Release"></a>
+    <a href="https://github.com/cxq1221/kaka/actions/workflows/build.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/cxq1221/kaka/build.yml?style=flat&amp;logo=githubactions&amp;logoColor=white&amp;branch=main&amp;event=push&amp;label=CI" alt="CI"></a>
+    <a href="../../LICENSE"><img src="https://img.shields.io/github/license/cxq1221/kaka?style=flat&amp;logo=opensourceinitiative&amp;logoColor=white" alt="MIT"></a>
   </p>
 </div>
 
-![Kiri](../assets/readme-preview.png)
+![Kaka](../assets/readme-preview.png)
 
 ## 기능
 
@@ -22,6 +23,7 @@
 - 시스템 소리와 마이크를 선택하여 MP4로 녹화하거나 소리 없는 GIF로 저장합니다.
 - 한 동영상의 클립을 자르고 순서를 바꾼 뒤 새 MP4로 내보냅니다.
 - 로컬 자료를 검색하고 태그와 즐겨찾기를 지정하거나 내보냅니다. 잘못 삭제한 자료는 휴지통에서 복원할 수 있습니다.
+- 완료한 스크린샷을 로컬 또는 신뢰하는 LAN의 LanChat 방으로 직접 보내 채팅 기록에 남길 수 있습니다. 자동 업로드는 하지 않습니다.
 - 설정에서 키를 눌러 전역 단축키를 지정하거나 해제하고 기본값으로 복원합니다. 녹화 제어 키는 녹화 중에만 작동합니다([Wayland는 데스크톱에서 설정](../linux.md)).
 
 ## 시작하기
@@ -30,14 +32,18 @@
 2. 스크린샷, 녹화 또는 OCR을 선택한 뒤 창을 클릭하거나 영역을 드래그합니다.
 3. 스크린샷은 `Enter`로 완료하고 `Esc`로 취소합니다. 완료한 이미지는 클립보드에 복사되고 라이브러리에 저장됩니다.
 
-[설치 및 사용 안내](../usage.ko.md) · [동영상 편집](../video-editing.ko.md) · [Linux](../linux.md) · [문제 신고](https://github.com/yuxino/kiri/issues)
+[설치 및 사용 안내](../usage.ko.md) · [동영상 편집](../video-editing.ko.md) · [Linux](../linux.md) · [문제 신고](https://github.com/cxq1221/kaka/issues)
+
+## 기원 및 라이선스
+
+Kaka는 MIT 라이선스 코드를 기반으로 한 [Kiri](https://github.com/yuxino/Kiri)의 독립 포크입니다. 원본 저작권 고지는 [LICENSE](../../LICENSE)에 유지되며, 저작자 표시는 [NOTICE](../../NOTICE.md)에서 확인할 수 있습니다.
 
 ## 감사합니다
 
-코드를 작성하고, 문제를 신고하고, Kiri를 사용하거나 공유해 주신 모든 분께 감사합니다.
+코드를 작성하고, 문제를 신고하고, Kaka를 사용하거나 공유해 주신 모든 분께 감사합니다.
 
 [초기 Linux 지원](https://github.com/yuxino/kiri/pull/20)을 제공한 [@kerwin2046](https://github.com/kerwin2046)와 [Windows 텍스트 배율에 따른 캡처 정렬](https://github.com/yuxino/kiri/pull/61)을 수정한 [@LLLin000](https://github.com/LLLin000)에게 특별히 감사드립니다.
 
 의견을 주고 공유해 주신 [V2EX](https://www.v2ex.com/) · [LINUX DO](https://linux.do/) · [Appinn](https://www.appinn.com/) · [NodeLoc](https://www.nodeloc.com/) 커뮤니티 여러분께도 감사합니다.
 
-[모든 기여자](https://github.com/yuxino/kiri/graphs/contributors) · [기여 안내](../../CONTRIBUTING.md) · [개인정보 처리방침](../privacy/en.md) · [MIT](../../LICENSE) © 2026 yuxino
+[모든 기여자](https://github.com/cxq1221/kaka/graphs/contributors) · [기여 안내](../../CONTRIBUTING.md) · [개인정보 처리방침](../privacy/en.md) · [MIT](../../LICENSE) · [NOTICE](../../NOTICE.md) © 2026 cxq1221

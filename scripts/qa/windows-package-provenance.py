@@ -8,7 +8,7 @@ import re
 import subprocess
 
 
-REPOSITORY = "yuxino/kiri"
+REPOSITORY = "cxq1221/kaka"
 WORKFLOW = ".github/workflows/build.yml"
 JOB = "Build and test Windows app (Server 2025)"
 
@@ -46,11 +46,11 @@ def validate(run, jobs, run_id, tag, source_sha):
 
 
 def candidate_files(directory, tag):
-    filename = f"kiri_{tag[1:]}_x64-setup.exe"
+    filename = f"kaka_{tag[1:]}_x64-setup.exe"
     required = {filename, filename + ".sig"}
     # Older tag artifacts contain only the installer and signature. Newer
     # artifacts also retain the portable package verified by the same build.
-    allowed = required | {f"Kiri-{tag[1:]}-Windows-x64-Portable.zip"}
+    allowed = required | {f"Kaka-{tag[1:]}-Windows-x64-Portable.zip"}
     paths = sorted(directory.iterdir())
     names = {path.name for path in paths}
     require(required <= names <= allowed,
@@ -82,7 +82,7 @@ def main():
                 for path in changes), "Harness differs from candidate application/build sources")
     args.directory.mkdir(parents=True, exist_ok=True)
     subprocess.run(["gh", "run", "download", str(args.run), "--repo", REPOSITORY,
-                    "--name", "kiri-windows", "--dir", str(args.directory)], check=True)
+                    "--name", "kaka-windows", "--dir", str(args.directory)], check=True)
     files = candidate_files(args.directory, args.tag)
     manifest = {"repository": REPOSITORY, "workflow_path": WORKFLOW,
                 "run_id": args.run, "run_attempt": run["run_attempt"],

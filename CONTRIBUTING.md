@@ -1,6 +1,6 @@
-# Contributing to kiri
+# Contributing to kaka
 
-Thanks for helping make kiri better.
+Thanks for helping make kaka better.
 
 CI runs required checks on ordinary commits; request platform acceptance packages
 or full verification explicitly. See the [CI profiles and provenance boundaries](docs/qa/ci-tiers.md).
@@ -14,8 +14,8 @@ Install Xcode Command Line Tools on macOS, MSVC C++ build tools on Windows,
 or the [Ubuntu dependencies](docs/linux.md#build-from-source) on Linux.
 
 ```bash
-git clone https://github.com/yuxino/kiri.git
-cd kiri
+git clone https://github.com/cxq1221/kaka.git
+cd kaka
 pnpm install --frozen-lockfile
 pnpm tauri dev
 # Compile the application without packaging an installer:

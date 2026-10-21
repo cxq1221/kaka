@@ -5,17 +5,24 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use block2::RcBlock;
 use objc2::{rc::Retained, MainThreadOnly};
-use objc2_core_foundation::CFRunLoop;
+use objc2_core_foundation::{
+    CFDictionary, CFNumber, CFRunLoop, CFString, CFType, CGPoint, CGRect, CGSize,
+};
+use objc2_core_graphics::{
+    kCGWindowNumber, CGDisplayBounds, CGMainDisplayID, CGWindowListCopyWindowInfo,
+    CGWindowListOption,
+};
 use tauri::{AppHandle, Manager};
 
 use objc2_app_kit::{
     NSAccessibility, NSBackingStoreType, NSColor, NSEvent, NSEventMask, NSPanel, NSRunningApplication,
-    NSScreenSaverWindowLevel, NSView, NSWindow, NSWindowCollectionBehavior, NSWindowOrderingMode,
-    NSWindowStyleMask, NSWorkspace,
+    NSScreenSaverWindowLevel, NSView, NSWindow, NSWindowAnimationBehavior,
+    NSWindowCollectionBehavior, NSWindowOrderingMode, NSWindowStyleMask, NSWorkspace,
 };
 use objc2_core_foundation::kCFRunLoopDefaultMode;
 use objc2_foundation::{MainThreadMarker, NSArray, NSRect, NSString, NSURL};
@@ -260,6 +267,121 @@ pub(super) fn show_window_without_activation(
     });
     if !shown_natively {
         let _ = fallback.show();
+    }
+}
+
+pub(super) fn place_transient_window(
+    window: &tauri::WebviewWindow,
+    frame: crate::core::geometry::Rect,
+) -> Result<()> {
+    let window = window.clone();
+    dispatch2::run_on_main(move |_main_thread| {
+        let raw = window.ns_window()?;
+        let ns_window = unsafe { (raw as *mut NSWindow).as_ref() }
+            .ok_or_else(|| anyhow::anyhow!("The capture window is unavailable."))?;
+        let parent = SPACE_PARENTS.with_borrow(|parents| {
+            parents.get(&ns_window.windowNumber()).cloned()
+        });
+        // Reordering a child through its parent can otherwise apply the
+        // position twice when the resident overlay is moved to another display.
+        if let Some(parent) = parent.as_ref() {
+            parent.removeChildWindow(ns_window);
+        }
+        let main_bounds = CGDisplayBounds(CGMainDisplayID());
+        let main_height = main_bounds.origin.y + main_bounds.size.height;
+        let native_frame = CGRect {
+            origin: CGPoint {
+                x: frame.x,
+                y: main_height - (frame.y + frame.height),
+            },
+            size: CGSize {
+                width: frame.width,
+                height: frame.height,
+            },
+        };
+        ns_window.setFrame_display(native_frame, false);
+        if let Some(parent) = parent {
+            parent.setFrame_display(native_frame, false);
+        }
+        Ok(())
+    })
+}
+
+/// Hides a window and observes AppKit's final visibility state. Disabling the
+/// per-window animation makes `orderOut` immediate, so capture does not need a
+/// guessed delay before asking for the frozen display.
+pub fn hide_window_for_capture(window: &tauri::WebviewWindow) -> Result<()> {
+    let window = window.clone();
+    dispatch2::run_on_main(move |_main_thread| {
+        let ns_window = window.ns_window()?;
+        let ns_window = unsafe { (ns_window as *mut NSWindow).as_ref() }
+            .ok_or_else(|| anyhow::anyhow!("The capture window is unavailable."))?;
+        let parent = SPACE_PARENTS.with_borrow(|parents| {
+            parents.get(&ns_window.windowNumber()).cloned()
+        });
+        if !ns_window.isVisible()
+            && !window.is_visible()?
+            && parent.as_ref().is_none_or(|parent| !parent.isVisible())
+        {
+            return Ok(());
+        }
+        ns_window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+        window.hide()?;
+        ns_window.orderOut(None);
+        if let Some(parent) = parent {
+            parent.orderOut(None);
+        }
+        if ns_window.isVisible() || window.is_visible()? {
+            anyhow::bail!("Kaka's window could not be hidden before capture.");
+        }
+        Ok(())
+    })
+}
+
+/// Waits until WindowServer has removed the hidden windows from its on-screen
+/// list. NSWindow visibility alone is not enough: display capture can still
+/// observe the previous compositor frame immediately after `orderOut`.
+pub fn wait_for_windows_hidden(window_ids: &[u32]) -> Result<()> {
+    if window_ids.is_empty() {
+        return Ok(());
+    }
+    let deadline = Instant::now() + Duration::from_millis(500);
+    loop {
+        let Some(on_screen) = CGWindowListCopyWindowInfo(
+            CGWindowListOption::OptionOnScreenOnly | CGWindowListOption::ExcludeDesktopElements,
+            0,
+        ) else {
+            anyhow::bail!("WindowServer returned no window list.");
+        };
+        let windows = unsafe { on_screen.cast_unchecked::<CFType>() };
+        let any_visible = windows.iter().any(|entry| {
+            let Some(info) = entry.downcast_ref::<CFDictionary>() else {
+                return false;
+            };
+            let info = unsafe { info.cast_unchecked::<CFString, CFType>() };
+            let Some(number) = info
+                .get(unsafe { kCGWindowNumber })
+                .and_then(|value| value.downcast_ref::<CFNumber>()?.as_i64())
+            else {
+                return false;
+            };
+            window_ids.contains(&u32::try_from(number).unwrap_or(u32::MAX))
+        });
+        if !any_visible {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            anyhow::bail!("Kaka's windows remained visible in WindowServer.");
+        }
+        // Let AppKit finish its current WindowServer transaction. This is a
+        // condition wait, not a fixed capture delay.
+        if MainThreadMarker::new().is_some() {
+            unsafe {
+                let _ = CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, 0.001, true);
+            }
+        } else {
+            thread::yield_now();
+        }
     }
 }
 

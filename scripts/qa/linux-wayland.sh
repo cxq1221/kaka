@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GNOME 46 capture and recording checks on an isolated virtual desktop.
-# Ubuntu 24.04 packages in addition to the installed Kiri package:
+# Ubuntu 24.04 packages in addition to the installed Kaka package:
 # sudo apt install --no-install-recommends gnome-shell gnome-settings-daemon \
 #   xdg-desktop-portal xdg-desktop-portal-gnome pipewire wireplumber \
 #   libgl1-mesa-dri libegl-mesa0 dbus-x11 at-spi2-core python3-pyatspi \
@@ -13,7 +13,7 @@ if [[ "$(uname -s)" != Linux ]]; then
   exit 1
 fi
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-executable="$(realpath "${1:-/usr/bin/kiri}")"
+executable="$(realpath "${1:-/usr/bin/kaka}")"
 display_scale="${KIRI_QA_DISPLAY_SCALE:-1}"
 if [[ -n "${KIRI_LINUX_WAYLAND_QA_DIR:-}" ]]; then
   output="$KIRI_LINUX_WAYLAND_QA_DIR"

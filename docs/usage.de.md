@@ -1,4 +1,4 @@
-# Kiri verwenden
+# Kaka verwenden
 
 [简体中文](usage.zh-CN.md) · [English](usage.md) · [繁體中文](usage.zh-TW.md) · [日本語](usage.ja.md) · **Deutsch** · [한국어](usage.ko.md) · [Français](usage.fr.md)
 
@@ -6,31 +6,31 @@
 
 ## Installieren und aktualisieren
 
-[Aktuelle Version herunterladen →](https://github.com/yuxino/kiri/releases/latest)
+[Aktuelle Version herunterladen →](https://github.com/cxq1221/kaka/releases/latest)
 
 | Plattform | Installation |
 | --- | --- |
-| macOS 14+ · Apple silicon und Intel | Universal-`.dmg` öffnen und Kiri in „Programme“ ziehen. |
-| Windows 11 · x64 | `.exe`-Installer ausführen oder Portable ZIP entpacken und `kiri.exe` starten. |
-| Ubuntu 24.04 · x64 · GNOME / X11 | `.deb` herunterladen und `sudo apt install ./kiri_VERSION_amd64.deb` mit dem tatsächlichen Dateinamen ausführen. |
+| macOS 14+ · Apple silicon und Intel | Universal-`.dmg` öffnen und Kaka in „Programme“ ziehen. |
+| Windows 11 · x64 | `.exe`-Installer ausführen oder Portable ZIP entpacken und `kaka.exe` starten. |
+| Ubuntu 24.04 · x64 · GNOME / X11 | `.deb` herunterladen und `sudo apt install ./kaka_VERSION_amd64.deb` mit dem tatsächlichen Dateinamen ausführen. |
 
 macOS benötigt die Berechtigung für Bildschirm- und Systemaudioaufnahme. Klickmarkierungen benötigen zusätzlich Eingabeüberwachung; Mikrofonaufnahme erfordert macOS 15+. Die App ist nicht von Apple notarisiert. Bei einer Blockierung verwenden Sie Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen. Windows-Pakete sind nicht Authenticode-signiert; SmartScreen kann warnen.
 
 Linux: Wayland-Aufnahme unterstützt einen angeschlossenen Bildschirm. MP4-Aufnahmen können Systemton und Mikrofon über den lokalen PulseAudio- oder PipeWire-Dienst enthalten. Klickmarkierungen sind noch nicht verfügbar. Gespeicherte Videos unterstützen einfache Schnitte und MP4-Export; erweiterte Videoeffekte sind nicht verfügbar. Einrichtung und Aufnahmesteuerung stehen im [Linux-Leitfaden](linux.md).
 
-Updates: macOS und installierte Windows-Versionen verwenden Einstellungen → Über Kiri → Nach Updates suchen. Linux und Windows Portable benötigen ein neues Paket von Releases. Einstellungen und Aufnahmen der Portable-Version bleiben im Windows-Benutzerprofil.
+Updates: macOS und installierte Windows-Versionen verwenden Einstellungen → Über Kaka → Nach Updates suchen. Linux und Windows Portable benötigen ein neues Paket von Releases. Einstellungen und Aufnahmen der Portable-Version bleiben im Windows-Benutzerprofil.
 
 macOS Dock: Einstellungen → Im Dock anzeigen schaltet das Dock-Symbol sofort um und merkt sich die Wahl. Tray und Aufnahme-Tastenkürzel bleiben auch ohne Dock-Symbol verfügbar.
 
 ## Sprache
 
-Einstellungen → Allgemein → Sprache bietet English, 简体中文, 繁體中文, 日本語, Deutsch, 한국어 und Français. Ihre Wahl gilt sofort für alle Kiri-Fenster und bleibt nach einem Neustart erhalten. Beim ersten Start wird die Systemsprache verwendet. Die Oberflächensprache ändert keine installierten Linux-OCR-Sprachdaten.
+Einstellungen → Allgemein → Sprache bietet English, 简体中文, 繁體中文, 日本語, Deutsch, 한국어 und Français. Ihre Wahl gilt sofort für alle Kaka-Fenster und bleibt nach einem Neustart erhalten. Beim ersten Start wird die Systemsprache verwendet. Die Oberflächensprache ändert keine installierten Linux-OCR-Sprachdaten.
 
 ## Aufnehmen
 
-Drücken Sie ⇧⌘A auf macOS oder Shift+Ctrl+A auf Windows / Linux X11 und wählen Sie ein Fenster oder ziehen Sie einen Bereich. Auf Wayland verwenden Sie die Aufnahme-Schaltfläche oder weisen `kiri --capture` in den Desktop-Einstellungen zu. Unterstützte Desktops bieten Einstellungen → Tastenkürzel → Wayland-Desktop-Tastenkürzel für genehmigte Aufnahme-, Pause/Fortsetzen- und Beenden-Tastenkürzel. Ubuntu 24.04 / GNOME 46 behält die Befehlslösung bei.
+Drücken Sie ⇧⌘A auf macOS oder Shift+Ctrl+A auf Windows / Linux X11 und wählen Sie ein Fenster oder ziehen Sie einen Bereich. Auf Wayland verwenden Sie die Aufnahme-Schaltfläche oder weisen `kaka --capture` in den Desktop-Einstellungen zu. Unterstützte Desktops bieten Einstellungen → Tastenkürzel → Wayland-Desktop-Tastenkürzel für genehmigte Aufnahme-, Pause/Fortsetzen- und Beenden-Tastenkürzel. Ubuntu 24.04 / GNOME 46 behält die Befehlslösung bei.
 
-Unter macOS, Windows und Linux öffnet die Kiri-Programmdatei mit `--capture`, `--record`, `--ocr` oder `--library` die Bereichsauswahl für Screenshots, die Bereichsauswahl für Aufnahmen, die Texterkennung beziehungsweise das Hauptfenster, auch wenn Kiri noch nicht läuft.
+Unter macOS, Windows und Linux öffnet die Kaka-Programmdatei mit `--capture`, `--record`, `--ocr` oder `--library` die Bereichsauswahl für Screenshots, die Bereichsauswahl für Aufnahmen, die Texterkennung beziehungsweise das Hauptfenster, auch wenn Kaka noch nicht läuft.
 
 Wählen Sie Screenshot, Aufnahme oder OCR. Die Screenshot-Leiste bietet auch QR-Erkennung. Enter bestätigt einen Screenshot; Esc bricht ab. Screenshots landen in der Zwischenablage und lokalen Bibliothek. Unter macOS, Windows und X11 können Sie in Einstellungen → Tastenkürzel ein Tastenfeld anklicken und die gewünschte Taste drücken, die Belegung löschen oder zurücksetzen. Aufnahmesteuerungen sind nur während einer Aufnahme aktiv.
 
@@ -40,23 +40,23 @@ Wenn sich auf macOS nach der Auswahl die Bildschirmanordnung, Auflösung oder Sk
 
 Beim Schreiben einer Anmerkung macht Ctrl/Cmd+Z Textänderungen rückgängig; Shift+Enter fügt eine Zeile ein. Esc beendet zuerst die Texteingabe; ein zweites Esc bricht die Erfassung ab. Beim Schließen eines bearbeiteten Bildes mit ungespeicherten Änderungen können Sie speichern, verwerfen oder weiter bearbeiten.
 
-Wenn bei der ersten Aufnahme auf GNOME Wayland kein Berechtigungsdialog erscheint, öffnen Sie die Bibliothek und fordern im Fehlerbanner Zugriff an. Erlauben Sie Screenshots im GNOME-Dialog und versuchen Sie die Aufnahme erneut. Kiri verwirft das Berechtigungsbild. Siehe [Linux-Leitfaden](linux.md).
+Wenn bei der ersten Aufnahme auf GNOME Wayland kein Berechtigungsdialog erscheint, öffnen Sie die Bibliothek und fordern im Fehlerbanner Zugriff an. Erlauben Sie Screenshots im GNOME-Dialog und versuchen Sie die Aufnahme erneut. Kaka verwirft das Berechtigungsbild. Siehe [Linux-Leitfaden](linux.md).
 
 Die Aufnahmevorbereitung bietet MP4 / GIF, Start und vier nebeneinanderliegende Symbole: Systemton, Mikrofon, Mauszeiger und Klickmarkierungen. Start löst immer einen Countdown von drei Sekunden aus; GIF-Aufnahmen sind ohne Ton. Das Panel passt sich an Auswahl und Bildschirmränder an.
 
-Der kleine Pfeil neben dem Mikrofon öffnet die Auswahl der verfügbaren Eingabegeräte, ohne das Standardgerät des Systems zu ändern. Ist das gewählte Gerät nicht verfügbar oder wird es getrennt, meldet Kiri einen Fehler, statt unbemerkt zu einem anderen Mikrofon zu wechseln.
+Der kleine Pfeil neben dem Mikrofon öffnet die Auswahl der verfügbaren Eingabegeräte, ohne das Standardgerät des Systems zu ändern. Ist das gewählte Gerät nicht verfügbar oder wird es getrennt, meldet Kaka einen Fehler, statt unbemerkt zu einem anderen Mikrofon zu wechseln.
 
 ## Scrollaufnahmen
 
 Wählen Sie den scrollenden Inhalt und vor dem Hinzufügen von Anmerkungen **Scrollaufnahme** in der Screenshot-Leiste. Beginnen Sie an beliebiger Stelle und scrollen Sie wie gewohnt nach oben oder unten. Bereits erfasster Inhalt wird beim Zurückscrollen nicht doppelt hinzugefügt. Lesepausen beenden die Aufnahme nicht. **Fertig** kopiert und speichert das Bild; vor dem Speichern bricht Esc ab. Enter bleibt für die ursprüngliche Anwendung verfügbar.
 
-Während einer Scrollaufnahme führt `kiri --finish-scroll-capture` dieselbe Prüfung vor dem vollständigen Speichern wie **Fertig** aus; ein Teilergebnis wird nie automatisch stattdessen gespeichert. `kiri --cancel-scroll-capture` bricht vor Beginn des Speicherns ab. Beide Befehle steuern nur die laufende Sitzung und starten keine neue Aufnahme.
+Während einer Scrollaufnahme führt `kaka --finish-scroll-capture` dieselbe Prüfung vor dem vollständigen Speichern wie **Fertig** aus; ein Teilergebnis wird nie automatisch stattdessen gespeichert. `kaka --cancel-scroll-capture` bricht vor Beginn des Speicherns ab. Beide Befehle steuern nur die laufende Sitzung und starten keine neue Aufnahme.
 
 Der ausgewählte Bereich bleibt während der Aufnahme sichtbar markiert; außerhalb wird der Bildschirm abgedunkelt. Klicks, Mausrad und Trackpad-Gesten erreichen weiterhin die ursprüngliche Anwendung. Diese Anzeige verändert die Auswahl nicht und erscheint nicht im gespeicherten Bild.
 
 Die Vorschau folgt dem aktuellen Ausschnitt der Originalaufnahme und passt ihn an die Panelbreite an. Ihr Maßstab bleibt gleich, wenn die Aufnahme länger wird. Scrollen Sie in der Vorschau zum Prüfen; sobald der Zeiger den Bereich verlässt, folgt sie wieder der Quelle. Ziehen Sie die Titelzeile, um das Fenster zu verschieben; bei kompakten Bedienelementen ziehen Sie den Statustext. Das Fenster bleibt auf dem aufgenommenen Bildschirm und unter X11 außerhalb der Auswahl.
 
-Nach dem Scrollen entfernt Kiri erkannte feste Kopf- und Fußleisten. An nicht erneut besuchten Außenrändern können Schatten bleiben. Fordert Kiri zur Wiederherstellung auf, scrollen Sie durch den betroffenen Bereich zurück, bevor Sie das vollständige Bild speichern.
+Nach dem Scrollen entfernt Kaka erkannte feste Kopf- und Fußleisten. An nicht erneut besuchten Außenrändern können Schatten bleiben. Fordert Kaka zur Wiederherstellung auf, scrollen Sie durch den betroffenen Bereich zurück, bevor Sie das vollständige Bild speichern.
 
 Wenn sich eine Ansicht nicht zuordnen lässt, bleibt das zusammenhängende Ergebnis erhalten. Scrollen Sie zum erfassten Inhalt zurück und dann durch die fehlende Stelle. Mit dem Scrollbalken übersprungener, nie angezeigter Inhalt muss erneut sichtbar werden. **Erfassten Bereich speichern** speichert ausdrücklich nur das aktuelle Teilergebnis und ergänzt keine fehlenden oder unsicheren Inhalte. Nach einem Speicherfehler können Sie denselben erhaltenen Stand erneut speichern.
 
@@ -86,7 +86,7 @@ Im Screenshot-Modus zeigt die Lupe beim Bewegen des Mauszeigers die ursprünglic
 
 ## GIF-Konvertierung
 
-Beim Konvertieren einer gespeicherten MP4-Datei prüft Kiri zuerst die Video-Dekodierung und beginnt dann mit der GIF-Kodierung. Prüfung und Konvertierung lassen sich abbrechen; mehrere Aufgaben können gemeinsam abgebrochen werden. Das Originalvideo bleibt erhalten. Sobald das abschließende Speichern in der Bibliothek beginnt, ist kein Abbruch mehr möglich.
+Beim Konvertieren einer gespeicherten MP4-Datei prüft Kaka zuerst die Video-Dekodierung und beginnt dann mit der GIF-Kodierung. Prüfung und Konvertierung lassen sich abbrechen; mehrere Aufgaben können gemeinsam abgebrochen werden. Das Originalvideo bleibt erhalten. Sobald das abschließende Speichern in der Bibliothek beginnt, ist kein Abbruch mehr möglich.
 
 ## Bibliothek und Rückmeldungen
 
@@ -98,7 +98,7 @@ Unter Einstellungen → Über lassen sich auch die Einstellungs- und Protokollor
 
 ## Datenschutz
 
-Aufnahmen und Medienverarbeitung bleiben lokal. Remote-OCR ist optional und fragt vor jedem Upload nach. Bearbeitbare Screenshots behalten das Originalbild lokal, einschließlich der durch Anmerkungen verdeckten Pixel. Lesen Sie die [Datenschutzrichtlinie](privacy/en.md).
+Aufnahmen und Medienverarbeitung bleiben standardmäßig lokal. Nur bei ausdrücklicher Wahl von „An LanChat senden“ wird das ausgewählte zusammengeführte Bild an einen lokalen oder vertrauenswürdigen LAN-Raum gesendet. Remote-OCR ist optional und fragt vor jedem Upload nach. Bearbeitbare Screenshots behalten das Originalbild lokal, einschließlich der durch Anmerkungen verdeckten Pixel. Lesen Sie die [Datenschutzrichtlinie](privacy/en.md).
 
 ## Weitere Dokumente
 

@@ -71,12 +71,12 @@ impl ShortcutAction {
     }
     pub fn command(self) -> &'static str {
         match self {
-            Self::Capture => "kiri --capture",
-            Self::Record => "kiri --record",
-            Self::Ocr => "kiri --ocr",
-            Self::Library => "kiri --library",
-            Self::RecordingPauseResume => "kiri --toggle-recording-pause",
-            Self::RecordingStop => "kiri --stop-recording",
+            Self::Capture => "kaka --capture",
+            Self::Record => "kaka --record",
+            Self::Ocr => "kaka --ocr",
+            Self::Library => "kaka --library",
+            Self::RecordingPauseResume => "kaka --toggle-recording-pause",
+            Self::RecordingStop => "kaka --stop-recording",
         }
     }
 }

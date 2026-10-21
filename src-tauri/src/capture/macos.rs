@@ -14,8 +14,13 @@ use objc2::rc::Retained;
 use objc2::runtime::{NSObjectProtocol, ProtocolObject};
 use objc2::{AnyThread, DefinedClass, MainThreadMarker};
 use objc2_app_kit::{NSBitmapImageRep, NSEvent, NSScreen};
-use objc2_core_foundation::{CFRetained, CGPoint, CGRect, CGSize};
-use objc2_core_graphics::{CGDirectDisplayID, CGDisplayBounds, CGImage, CGMainDisplayID};
+use objc2_core_foundation::{
+    CFMutableData, CFRetained, CGPoint, CGRect, CGSize, CFString,
+};
+use objc2_core_graphics::{
+    CGDirectDisplayID, CGDisplayBounds, CGDisplayCreateImage, CGImage, CGImageGetHeight,
+    CGImageGetWidth, CGMainDisplayID,
+};
 use objc2_core_media::{
     CMAudioFormatDescriptionGetStreamBasicDescription, CMBlockBuffer, CMFormatDescription,
     CMSampleBuffer, CMTime,
@@ -26,6 +31,7 @@ use objc2_core_video::{
     CVPixelBufferLockFlags, CVPixelBufferUnlockBaseAddress,
 };
 use objc2_foundation::{NSArray, NSDictionary, NSError, NSNumber, NSObject, NSString};
+use objc2_image_io::CGImageDestination;
 use objc2_screen_capture_kit::{
     SCContentFilter, SCDisplay, SCScreenshotManager, SCShareableContent, SCStream,
     SCStreamConfiguration, SCStreamDelegate, SCStreamOutput, SCStreamOutputType, SCWindow,
@@ -579,6 +585,119 @@ fn cgimage_to_png(image: &CFRetained<CGImage>) -> Result<(Vec<u8>, i64, i64)> {
 
 const SCREENSHOT_CALLBACK_TIMEOUT: Duration = Duration::from_secs(8);
 
+/// An immutable CGImage retained across the capture-to-encoding handoff.
+/// Core Foundation image objects are safe to read from another thread; the
+/// wrapper exists only to move ownership out of the synchronous overlay path.
+pub struct DeferredCaptureFrame(CFRetained<CGImage>);
+
+unsafe impl Send for DeferredCaptureFrame {}
+
+/// Captures only the display pixels. ScreenCaptureKit enumeration and window
+/// geometry are intentionally deferred so the overlay can appear first.
+pub fn capture_active_display_frame() -> Result<(CapturedDisplay, DeferredCaptureFrame)> {
+    match check_capture_permission() {
+        PermissionState::Authorized => {}
+        PermissionState::RestartRequired => {
+            bail!("Screen Recording access was granted. Quit and reopen Kiri once to finish enabling capture.")
+        }
+        PermissionState::SettingsRequired => {
+            bail!("Screen Recording is off. Enable Kiri in System Settings, then quit and reopen it once.")
+        }
+    }
+
+    let screen = active_screen()?;
+    let image = unsafe { CGDisplayCreateImage(screen.display_id) }
+        .ok_or_else(|| anyhow!("the active display could not be captured"))?;
+    let pixel_width = CGImageGetWidth(Some(&image)) as i64;
+    let pixel_height = CGImageGetHeight(Some(&image)) as i64;
+    if pixel_width <= 0 || pixel_height <= 0 {
+        bail!("the active display returned an empty image");
+    }
+
+    Ok((
+        CapturedDisplay {
+            png_data: Arc::from([]),
+            pixel_width,
+            pixel_height,
+            screen_frame: screen.frame,
+            window_rects: Vec::new(),
+            display_id: screen.display_id,
+            display_identity: None,
+            backing_scale: screen.backing_scale,
+        },
+        DeferredCaptureFrame(image),
+    ))
+}
+
+/// Encodes the already-captured display image without touching AppKit.
+pub fn encode_capture_frame_png(
+    frame: DeferredCaptureFrame,
+) -> Result<(Arc<[u8]>, i64, i64)> {
+    let width = CGImageGetWidth(Some(&frame.0)) as i64;
+    let height = CGImageGetHeight(Some(&frame.0)) as i64;
+    let encoded = CFMutableData::new(None, 0)
+        .ok_or_else(|| anyhow!("could not allocate the frozen capture"))?;
+    let png_type = CFString::from_static_str("public.png");
+    let destination = unsafe { CGImageDestination::with_data(&encoded, &png_type, 1, None) }
+        .ok_or_else(|| anyhow!("could not create the PNG encoder"))?;
+    unsafe {
+        destination.add_image(&frame.0, None);
+        if !destination.finalize() {
+            bail!("could not encode capture as PNG");
+        }
+    }
+    Ok((Arc::from(encoded.to_vec()), width, height))
+}
+
+/// Reads ScreenCaptureKit content on its callback queue and calculates window
+/// rectangles on the main thread without blocking capture startup.
+pub fn capture_window_rects_deferred(display_id: u32) -> Result<Vec<Rect>> {
+    if MainThreadMarker::new().is_some() {
+        bail!("deferred window enumeration must not block the main thread");
+    }
+
+    let (tx, rx) = mpsc::channel::<Result<Vec<Rect>>>();
+    dispatch2::run_on_main(move |_main_thread| {
+        let block = RcBlock::new(
+            move |content: *mut SCShareableContent, error: *mut NSError| {
+                if !error.is_null() {
+                    let error = unsafe { Retained::retain(error).unwrap() };
+                    let _ = tx.send(Err(anyhow!(error.localizedDescription().to_string())));
+                    return;
+                }
+                if content.is_null() {
+                    let _ = tx.send(Err(anyhow!("shareable content failed")));
+                    return;
+                }
+
+                let content = unsafe { Retained::retain(content).unwrap() };
+                let content_pointer = Retained::into_raw(content) as usize;
+                let completion_tx = tx.clone();
+                dispatch2::run_on_main(move |_main_thread| {
+                    let result = (|| {
+                        let content = unsafe {
+                            Retained::from_raw(content_pointer as *mut SCShareableContent)
+                        }
+                        .ok_or_else(|| anyhow!("shareable content was unavailable"))?;
+                        Ok(collect_window_rects(&content, display_id))
+                    })();
+                    let _ = completion_tx.send(result);
+                });
+            },
+        );
+        unsafe {
+            SCShareableContent::getShareableContentExcludingDesktopWindows_onScreenWindowsOnly_completionHandler(
+                false,
+                true,
+                &block,
+            );
+        }
+    });
+
+    rx.recv_timeout(Duration::from_secs(8))
+        .map_err(|_| anyhow!("window enumeration timed out after 8s"))?
+}
+
 fn receive_screenshot_callback<T>(
     receiver: &mpsc::Receiver<std::result::Result<T, String>>,
     timeout: Duration,
@@ -865,7 +984,7 @@ impl MacRecordingSession {
             });
 
             let delegate = KiriStreamDelegate::with_state(state);
-            let queue = dispatch2::DispatchQueue::new("io.yuxino.kiri.stream", None);
+            let queue = dispatch2::DispatchQueue::new("io.cxq1221.kaka.stream", None);
 
             let delegate_ref: &KiriStreamDelegate = &delegate;
             let stream = unsafe {
@@ -1758,7 +1877,7 @@ pub(crate) fn start_scroll_source(
                 stopped: std::sync::atomic::AtomicBool::new(false),
             });
             let delegate = KiriScrollStreamDelegate::with_state(Arc::clone(&state));
-            let queue = dispatch2::DispatchQueue::new("io.yuxino.kiri.scroll", None);
+            let queue = dispatch2::DispatchQueue::new("io.cxq1221.kaka.scroll", None);
             let output: &ProtocolObject<dyn SCStreamOutput> = ProtocolObject::from_ref(&*delegate);
             let stream = unsafe {
                 SCStream::initWithFilter_configuration_delegate(

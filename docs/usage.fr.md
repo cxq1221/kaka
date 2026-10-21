@@ -1,4 +1,4 @@
-# Utiliser Kiri
+# Utiliser Kaka
 
 [简体中文](usage.zh-CN.md) · [English](usage.md) · [繁體中文](usage.zh-TW.md) · [日本語](usage.ja.md) · [Deutsch](usage.de.md) · [한국어](usage.ko.md) · **Français**
 
@@ -6,13 +6,13 @@
 
 ## Installation et mises à jour
 
-[Télécharger la dernière version →](https://github.com/yuxino/kiri/releases/latest)
+[Télécharger la dernière version →](https://github.com/cxq1221/kaka/releases/latest)
 
 | Plateforme | Installation |
 | --- | --- |
-| macOS 14+ · Apple silicon et Intel | Ouvrez le `.dmg` Universal et glissez Kiri dans Applications. |
-| Windows 11 · x64 | Exécutez l’installateur `.exe`, ou extrayez le ZIP Portable et lancez `kiri.exe`. |
-| Ubuntu 24.04 · x64 · GNOME / X11 | Téléchargez le `.deb`, puis exécutez `sudo apt install ./kiri_VERSION_amd64.deb` avec le nom réel du fichier. |
+| macOS 14+ · Apple silicon et Intel | Ouvrez le `.dmg` Universal et glissez Kaka dans Applications. |
+| Windows 11 · x64 | Exécutez l’installateur `.exe`, ou extrayez le ZIP Portable et lancez `kaka.exe`. |
+| Ubuntu 24.04 · x64 · GNOME / X11 | Téléchargez le `.deb`, puis exécutez `sudo apt install ./kaka_VERSION_amd64.deb` avec le nom réel du fichier. |
 
 macOS nécessite l’autorisation d’enregistrement de l’écran et de l’audio système. Les indicateurs de clic nécessitent aussi la surveillance des entrées, et l’enregistrement du microphone nécessite macOS 15+. L’application n’est pas notariée par Apple : si elle est bloquée, utilisez Réglages Système → Confidentialité et sécurité → Ouvrir quand même. Les paquets Windows ne sont pas signés Authenticode ; SmartScreen peut afficher un avertissement.
 
@@ -24,13 +24,13 @@ Dock macOS : Réglages → Afficher dans le Dock modifie immédiatement l’icô
 
 ## Langue
 
-Réglages → Général → Langue propose English, 简体中文, 繁體中文, 日本語, Deutsch, 한국어 et Français. Votre choix s’applique immédiatement à toutes les fenêtres de Kiri et reste mémorisé après un redémarrage. Au premier lancement, Kiri suit la langue du système. Changer la langue d’interface ne change pas les données de langue OCR installées sous Linux.
+Réglages → Général → Langue propose English, 简体中文, 繁體中文, 日本語, Deutsch, 한국어 et Français. Votre choix s’applique immédiatement à toutes les fenêtres de Kaka et reste mémorisé après un redémarrage. Au premier lancement, Kaka suit la langue du système. Changer la langue d’interface ne change pas les données de langue OCR installées sous Linux.
 
 ## Capture
 
-Appuyez sur ⇧⌘A sous macOS ou Shift+Ctrl+A sous Windows / Linux X11, puis sélectionnez une fenêtre ou faites glisser une zone. Sous Wayland, utilisez le bouton de capture ou attribuez `kiri --capture` dans les réglages du bureau. Les bureaux compatibles proposent aussi Réglages → Raccourcis → Raccourcis du bureau Wayland pour autoriser Capturer, Suspendre/Reprendre et Arrêter. Ubuntu 24.04 / GNOME 46 conserve la solution par commandes.
+Appuyez sur ⇧⌘A sous macOS ou Shift+Ctrl+A sous Windows / Linux X11, puis sélectionnez une fenêtre ou faites glisser une zone. Sous Wayland, utilisez le bouton de capture ou attribuez `kaka --capture` dans les réglages du bureau. Les bureaux compatibles proposent aussi Réglages → Raccourcis → Raccourcis du bureau Wayland pour autoriser Capturer, Suspendre/Reprendre et Arrêter. Ubuntu 24.04 / GNOME 46 conserve la solution par commandes.
 
-Sous macOS, Windows et Linux, l’exécutable Kiri accepte aussi `--capture`, `--record`, `--ocr` et `--library` pour ouvrir respectivement la sélection de capture d’écran, la sélection d’enregistrement, la reconnaissance de texte et la fenêtre principale, que Kiri soit déjà lancé ou non.
+Sous macOS, Windows et Linux, l’exécutable Kaka accepte aussi `--capture`, `--record`, `--ocr` et `--library` pour ouvrir respectivement la sélection de capture d’écran, la sélection d’enregistrement, la reconnaissance de texte et la fenêtre principale, que Kaka soit déjà lancé ou non.
 
 Choisissez Capture d’écran, Enregistrer ou OCR. La barre de capture propose aussi la reconnaissance QR. Entrée confirme une capture ; Échap annule. Les captures vont dans le presse-papiers et la bibliothèque locale. Sous macOS, Windows et X11, cliquez sur un champ dans Réglages → Raccourcis et appuyez sur la touche voulue ; vous pouvez aussi effacer ou rétablir une attribution. Les commandes d’enregistrement ne sont actives que pendant celui-ci.
 
@@ -40,25 +40,25 @@ Sous macOS, si vous changez la disposition des écrans, la résolution ou l’é
 
 Pendant la saisie d’une annotation, Ctrl/Cmd+Z annule les modifications du texte et Maj+Entrée ajoute une ligne. Échap quitte d’abord la saisie ; un deuxième Échap annule la capture. Fermer une image modifiée avec des changements non enregistrés propose Enregistrer, Ignorer ou Continuer à modifier.
 
-Sous GNOME Wayland, si la première capture n’affiche pas de demande d’autorisation, ouvrez la bibliothèque et demandez l’accès depuis la bannière d’erreur. Autorisez les captures dans la boîte de dialogue GNOME, puis réessayez. Kiri supprime l’image d’autorisation. Consultez le [guide Linux](linux.md).
+Sous GNOME Wayland, si la première capture n’affiche pas de demande d’autorisation, ouvrez la bibliothèque et demandez l’accès depuis la bannière d’erreur. Autorisez les captures dans la boîte de dialogue GNOME, puis réessayez. Kaka supprime l’image d’autorisation. Consultez le [guide Linux](linux.md).
 
 Le panneau de préparation propose MP4 / GIF, Démarrer et quatre icônes côte à côte : son du système, microphone, pointeur et indicateurs de clic. Le démarrage lance toujours un compte à rebours de trois secondes ; les GIF sont sans son. Le panneau s’adapte à la sélection et aux bords de l’écran.
 
-La petite flèche à côté du microphone permet de choisir un périphérique d’entrée réel sans modifier celui par défaut du système. Si le périphérique choisi est indisponible ou déconnecté, Kiri affiche une erreur au lieu de changer de microphone silencieusement.
+La petite flèche à côté du microphone permet de choisir un périphérique d’entrée réel sans modifier celui par défaut du système. Si le périphérique choisi est indisponible ou déconnecté, Kaka affiche une erreur au lieu de changer de microphone silencieusement.
 
 ## Captures défilantes
 
 Sélectionnez le contenu à faire défiler, puis **Capture défilante** dans la barre de capture avant d’ajouter des annotations. Commencez où vous voulez et faites défiler normalement vers le haut ou le bas. Revenir sur du contenu capturé n’ajoute pas de doublons. Une pause pour lire ne termine pas la capture. **Terminé** copie et enregistre ; Échap annule avant le début de l’enregistrement. Entrée reste disponible dans l’application d’origine.
 
-Pendant une capture défilante, `kiri --finish-scroll-capture` effectue les mêmes vérifications avant l’enregistrement complet que **Terminé**, sans enregistrer automatiquement un résultat partiel à la place. `kiri --cancel-scroll-capture` annule avant le début de l’enregistrement. Ces commandes contrôlent uniquement la session en cours et ne démarrent aucune capture.
+Pendant une capture défilante, `kaka --finish-scroll-capture` effectue les mêmes vérifications avant l’enregistrement complet que **Terminé**, sans enregistrer automatiquement un résultat partiel à la place. `kaka --cancel-scroll-capture` annule avant le début de l’enregistrement. Ces commandes contrôlent uniquement la session en cours et ne démarrent aucune capture.
 
 La sélection reste visible pendant la capture et l’extérieur est assombri. Les clics, la molette et les gestes du pavé tactile atteignent directement l’application d’origine. Ce repère ne change pas la sélection et n’apparaît pas dans l’image enregistrée.
 
 L’aperçu suit la partie actuelle de la capture originale, ajustée à la largeur du panneau. Son échelle reste la même lorsque la capture s’allonge. Faites défiler cet aperçu pour l’examiner, puis éloignez le pointeur pour reprendre le suivi. Faites glisser le titre pour déplacer le panneau, ou le texte d’état en mode compact. Le panneau reste sur l’écran capturé et, sous X11, hors de la sélection.
 
-Après défilement, Kiri retire les en-têtes et pieds de page fixes identifiés. Des ombres peuvent rester aux bords que vous n’avez pas revisités. Si Kiri demande une reprise, revenez sur la zone concernée avant d’enregistrer l’image complète.
+Après défilement, Kaka retire les en-têtes et pieds de page fixes identifiés. Des ombres peuvent rester aux bords que vous n’avez pas revisités. Si Kaka demande une reprise, revenez sur la zone concernée avant d’enregistrer l’image complète.
 
-Si une vue ne peut pas être raccordée, Kiri conserve le résultat continu et vous invite à revenir au contenu capturé. Revenez, puis parcourez la zone manquante. Le contenu sauté avec la barre de défilement doit être affiché pour être capturé. **Enregistrer la zone capturée** sauvegarde uniquement le résultat partiel actuel, sans compléter les contenus manquants ou incertains. En cas d’échec de sauvegarde, le résultat est conservé pour réessayer.
+Si une vue ne peut pas être raccordée, Kaka conserve le résultat continu et vous invite à revenir au contenu capturé. Revenez, puis parcourez la zone manquante. Le contenu sauté avec la barre de défilement doit être affiché pour être capturé. **Enregistrer la zone capturée** sauvegarde uniquement le résultat partiel actuel, sans compléter les contenus manquants ou incertains. En cas d’échec de sauvegarde, le résultat est conservé pour réessayer.
 
 Disponible sur macOS, Windows et Linux X11, mais pas sur Wayland. Sur macOS, la sélection doit tenir entièrement dans une fenêtre d’application normale. La capture reste liée à cette fenêtre et exclut les fenêtres flottantes externes ainsi que les autres fenêtres de la même application. Déplacer, redimensionner ou rendre indisponible la fenêtre source arrête la capture en conservant la progression. Windows et X11 capturent toujours la zone d’écran et n’excluent pas automatiquement les fenêtres flottantes externes : gardez-les hors de la sélection.
 
@@ -86,7 +86,7 @@ En mode Capture, survolez l’écran pour agrandir les pixels d’origine et voi
 
 ## Conversion GIF
 
-Pour convertir un MP4 de la bibliothèque en GIF, Kiri vérifie d’abord le décodage vidéo, puis commence l’encodage GIF. Vous pouvez annuler pendant la vérification ou la conversion, et annuler plusieurs tâches ensemble. La vidéo d’origine reste conservée. L’annulation est indisponible dès que l’enregistrement final dans la bibliothèque commence.
+Pour convertir un MP4 de la bibliothèque en GIF, Kaka vérifie d’abord le décodage vidéo, puis commence l’encodage GIF. Vous pouvez annuler pendant la vérification ou la conversion, et annuler plusieurs tâches ensemble. La vidéo d’origine reste conservée. L’annulation est indisponible dès que l’enregistrement final dans la bibliothèque commence.
 
 ## Bibliothèque et retours
 
@@ -98,7 +98,7 @@ Dans Paramètres → À propos, vous pouvez aussi ouvrir les dossiers des param�
 
 ## Confidentialité
 
-Les captures et le traitement des médias restent locaux. La reconnaissance distante est facultative et demande confirmation avant chaque envoi. Les captures modifiables conservent une image d’origine locale, y compris les pixels masqués par les annotations. Consultez la [politique de confidentialité](privacy/en.md).
+Les captures et le traitement des médias restent locaux par défaut. Seul le choix explicite d’« Envoyer vers LanChat » transmet l’image aplatie sélectionnée à un salon local ou de confiance sur le réseau local. La reconnaissance distante est facultative et demande confirmation avant chaque envoi. Les captures modifiables conservent une image d’origine locale, y compris les pixels masqués par les annotations. Consultez la [politique de confidentialité](privacy/en.md).
 
 ## Autres documents
 

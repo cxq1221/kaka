@@ -126,9 +126,29 @@ pub fn place_transient_window(
         window.set_size(tauri::PhysicalSize::new(width, height))?;
     }
 
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    macos::place_transient_window(window, frame).map_err(tauri::Error::Anyhow)?;
+
+    #[cfg(target_os = "macos")]
+    let _ = backing_scale;
+
+    #[cfg(target_os = "linux")]
     let _ = (window, frame, backing_scale);
 
+    Ok(())
+}
+
+/// Hides a Kiri window synchronously before requesting its pixels.
+pub fn hide_window_for_capture(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    current::hide_window_for_capture(window).map_err(tauri::Error::Anyhow)
+}
+
+/// Waits for the compositor to publish a hidden-window state before capture.
+pub fn wait_for_windows_hidden(window_ids: &[u32]) -> tauri::Result<()> {
+    #[cfg(target_os = "macos")]
+    macos::wait_for_windows_hidden(window_ids).map_err(tauri::Error::Anyhow)?;
+    #[cfg(not(target_os = "macos"))]
+    let _ = window_ids;
     Ok(())
 }
 

@@ -158,7 +158,7 @@ test("macOS exact-artifact acceptance can install a verified prebuilt app", () =
   const source = readFileSync(join(repositoryRoot, "scripts", "install-app.sh"), "utf8");
   assert.match(source, /KIRI_BUILD_APP/);
   assert.match(source, /using prebuilt package for exact-artifact acceptance/);
-  assert.match(source, /verify_kiri_app "\$BUILD_APP"/);
+  assert.match(source, /verify_kaka_app "\$BUILD_APP"/);
   assert.doesNotMatch(source, /KIRI_ALLOW_ADHOC_SIGNING|--no-sign/);
 });
 
@@ -202,7 +202,7 @@ test("release native gates validate the actual installed bundle and keep failure
   }
   const shortcut = readFileSync(join(repositoryRoot, "scripts/qa/shortcut-native.py"), "utf8");
   assert.match(shortcut, /installed_exe = os\.environ\.get\("KIRI_QA_INSTALLED_EXE"\)/);
-  assert.match(shortcut, /executable = Path\(installed_exe or "src-tauri\/target\/release\/kiri\.exe"\)\.resolve\(\)/);
+  assert.match(shortcut, /executable = Path\(installed_exe or "src-tauri\/target\/release\/kaka\.exe"\)\.resolve\(\)/);
   assert.match(shortcut, /"source": "installed" if installed_exe else "compiled fallback"/);
   assert.match(shortcut, /report\["candidate"\]\["sha256"\] = hashlib\.sha256\(executable\.read_bytes\(\)\)\.hexdigest\(\)/);
   assert.match(shortcut, /subprocess\.Popen\(\[str\(executable\)\]/);

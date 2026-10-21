@@ -274,7 +274,7 @@ mod tests {
         for layer in [3, 8, 25, 1000] {
             assert!(!eligible_window(layer, 42, true, 1.0, "test.fixture", 99));
         }
-        assert!(!eligible_window(0, 99, true, 1.0, "io.yuxino.kiri", 99));
+        assert!(!eligible_window(0, 99, true, 1.0, "io.cxq1221.kaka", 99));
         assert!(!eligible_window(
             0,
             42,

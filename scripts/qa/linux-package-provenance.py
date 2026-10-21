@@ -13,7 +13,7 @@ import sys
 
 WORKFLOW = ".github/workflows/build.yml"
 BUILD_JOB = "Build, test and package Linux (Ubuntu 24.04 / X11)"
-ARTIFACT = "kiri-linux-deb"
+ARTIFACT = "kaka-linux-deb"
 SHA = re.compile(r"[0-9a-f]{40}")
 ALLOWED_FILES = {
     WORKFLOW, "AGENTS.md", "README.md", "CONTRIBUTING.md", "SECURITY.md",
@@ -191,7 +191,7 @@ def verify(args, evidence):
             "Candidate's Debian packaging step did not succeed")
     artifacts = api_items(f"{root}/runs/{args.run_id}/artifacts", "artifacts")
     candidates = [a for a in artifacts if a["name"] == ARTIFACT and not a["expired"]]
-    require(len(candidates) == 1, "Expected one unexpired kiri-linux-deb artifact")
+    require(len(candidates) == 1, "Expected one unexpired kaka-linux-deb artifact")
     artifact = candidates[0]
     origin = artifact["workflow_run"]
     require(origin["id"] == int(args.run_id)

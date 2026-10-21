@@ -15,12 +15,12 @@ function setEditingInterception(editing: boolean): Promise<void> {
 }
 
 const ACTIONS: Array<{ action: ShortcutAction; title: string; description: string; icon: IconName; command: string }> = [
-  { action: "capture", title: "Screenshot", description: "Choose a window or region to capture.", icon: "camera.viewfinder", command: "kiri --capture" },
-  { action: "record", title: "Record", description: "Choose a region for a new recording.", icon: "record.circle.fill", command: "kiri --record" },
-  { action: "ocr", title: "Recognize Text", description: "Choose a region to recognize text.", icon: "text.viewfinder", command: "kiri --ocr" },
-  { action: "library", title: "Show main window", description: "Bring Kiri to the front.", icon: "photo.on.rectangle", command: "kiri --library" },
-  { action: "recordingPauseResume", title: "Pause/Resume Recording", description: "Pause/Resume Recording", icon: "pause.circle.fill", command: "kiri --toggle-recording-pause" },
-  { action: "recordingStop", title: "Stop and Save Recording", description: "Stop and Save Recording", icon: "stop.fill", command: "kiri --stop-recording" },
+  { action: "capture", title: "Screenshot", description: "Choose a window or region to capture.", icon: "camera.viewfinder", command: "kaka --capture" },
+  { action: "record", title: "Record", description: "Choose a region for a new recording.", icon: "record.circle.fill", command: "kaka --record" },
+  { action: "ocr", title: "Recognize Text", description: "Choose a region to recognize text.", icon: "text.viewfinder", command: "kaka --ocr" },
+  { action: "library", title: "Show main window", description: "Bring Kiri to the front.", icon: "photo.on.rectangle", command: "kaka --library" },
+  { action: "recordingPauseResume", title: "Pause/Resume Recording", description: "Pause/Resume Recording", icon: "pause.circle.fill", command: "kaka --toggle-recording-pause" },
+  { action: "recordingStop", title: "Stop and Save Recording", description: "Stop and Save Recording", icon: "stop.fill", command: "kaka --stop-recording" },
 ];
 
 // Native hotkeys can reach the recorder without a DOM keydown. Both paths must

@@ -11,6 +11,7 @@ mod diagnostics;
 mod support_info;
 mod dock_settings;
 mod gif;
+mod lanchat_share;
 mod video_export;
 mod video_project_commands;
 mod media_import;
@@ -95,7 +96,7 @@ pub fn run() {
                 .build(),
         )
         .manage(protocol::ProtocolStore::new())
-        .register_asynchronous_uri_scheme_protocol("kiri", |ctx, request, responder| {
+        .register_asynchronous_uri_scheme_protocol("kaka", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             // WebKit starts custom-scheme tasks on the application thread on
             // macOS. Thumbnail decoding and media I/O must not block that
@@ -131,6 +132,8 @@ pub fn run() {
             let options = state::load_recording_options(app.handle());
             *state.saved_recording_options.lock().unwrap() = options;
             app.manage(state);
+            #[cfg(target_os = "macos")]
+            commands::prepare_resident_overlay(app.handle()).map_err(anyhow::Error::msg)?;
             #[cfg(target_os = "linux")]
             app.manage(media_playback::MediaPlaybackServer::start(app.handle())?);
             app.manage(shortcut_settings::ShortcutBindings::new(
@@ -258,6 +261,10 @@ pub fn run() {
             batch_export::export_selected_assets,
             commands::copy_asset,
             commands::copy_asset_file,
+            lanchat_share::share_asset_to_lanchat,
+            lanchat_share::get_lanchat_share_settings,
+            lanchat_share::set_lanchat_share_origin,
+            lanchat_share::check_lanchat_share,
             commands::open_asset,
             commands::pin_asset,
             commands::open_editor,
@@ -273,8 +280,10 @@ pub fn run() {
             commands::import_media,
             commands::paste_clipboard_image,
             commands::start_capture,
+            commands::get_capture_state,
             commands::authorize_screenshot,
             commands::cancel_capture,
+            commands::dismiss_capture_overlay,
             commands::prepare_capture_annotation,
             commands::confirm_capture,
             commands::save_file_dialog,
@@ -394,7 +403,7 @@ fn show_library_window_inner(app: &tauri::AppHandle, reason: &str) -> Result<(),
                 "library",
                 tauri::WebviewUrl::App("index.html?window=library".into()),
             )
-            .title("kiri")
+            .title("Kaka")
             .inner_size(960.0, 640.0)
             .min_inner_size(820.0, 540.0)
             .center()
@@ -405,7 +414,7 @@ fn show_library_window_inner(app: &tauri::AppHandle, reason: &str) -> Result<(),
     };
     #[cfg(debug_assertions)]
     window
-        .set_title("Kiri (dev)")
+        .set_title("Kaka (dev)")
         .map_err(|error| format!("library window title could not be set: {error}"))?;
     window
         .show()
@@ -651,7 +660,7 @@ fn build_tray_menu(
 pub(crate) fn refresh_tray_menu(app: &tauri::AppHandle, language: &str) -> Result<(), String> {
     let tray = app
         .tray_by_id(MAIN_TRAY_ID)
-        .ok_or_else(|| "The Kiri tray icon is unavailable.".to_string())?;
+        .ok_or_else(|| "The Kaka tray icon is unavailable.".to_string())?;
     let menu = build_tray_menu(app, language).map_err(|error| error.to_string())?;
     tray.set_menu(Some(menu)).map_err(|error| error.to_string())
 }
@@ -682,7 +691,7 @@ fn install_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     };
     let mut builder = TrayIconBuilder::with_id(MAIN_TRAY_ID)
         .menu(&menu)
-        .tooltip("Kiri")
+        .tooltip("Kaka")
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open-library" => {
                 if let Err(error) = show_library_window(app, "tray") {
@@ -863,13 +872,13 @@ where
 
 fn tray_labels(language: &str) -> (&'static str, &'static str, &'static str) {
     match language {
-        "zh-Hans" => ("打开素材库", "截图 / 录屏", "退出 Kiri"),
-        "ja" => ("ライブラリを開く", "キャプチャ", "Kiri を終了"),
-        "zh-Hant" => ("開啟素材庫", "截圖 / 錄影", "結束 Kiri"),
-        "de" => ("Bibliothek öffnen", "Aufnehmen", "Kiri beenden"),
-        "ko" => ("라이브러리 열기", "캡처", "Kiri 종료"),
-        "fr" => ("Ouvrir la bibliothèque", "Capturer", "Quitter Kiri"),
-        _ => ("Open Library", "Capture", "Quit Kiri"),
+        "zh-Hans" => ("打开素材库", "截图 / 录屏", "退出 Kaka"),
+        "ja" => ("ライブラリを開く", "キャプチャ", "Kaka を終了"),
+        "zh-Hant" => ("開啟素材庫", "截圖 / 錄影", "結束 Kaka"),
+        "de" => ("Bibliothek öffnen", "Aufnehmen", "Kaka beenden"),
+        "ko" => ("라이브러리 열기", "캡처", "Kaka 종료"),
+        "fr" => ("Ouvrir la bibliothèque", "Capturer", "Quitter Kaka"),
+        _ => ("Open Library", "Capture", "Quit Kaka"),
     }
 }
 
@@ -923,18 +932,18 @@ mod tests {
 
     #[test]
     fn tray_labels_cover_supported_languages_and_default_to_english() {
-        assert_eq!(tray_labels("en"), ("Open Library", "Capture", "Quit Kiri"));
+        assert_eq!(tray_labels("en"), ("Open Library", "Capture", "Quit Kaka"));
         assert_eq!(
             tray_labels("zh-Hans"),
-            ("打开素材库", "截图 / 录屏", "退出 Kiri")
+            ("打开素材库", "截图 / 录屏", "退出 Kaka")
         );
         assert_eq!(
             tray_labels("ja"),
-            ("ライブラリを開く", "キャプチャ", "Kiri を終了")
+            ("ライブラリを開く", "キャプチャ", "Kaka を終了")
         );
         assert_eq!(
             tray_labels("unknown"),
-            ("Open Library", "Capture", "Quit Kiri")
+            ("Open Library", "Capture", "Quit Kaka")
         );
     }
 
@@ -943,10 +952,10 @@ mod tests {
         use crate::shortcut_settings::ShortcutAction;
         for (flag, action) in [("--capture", ShortcutAction::Capture), ("--record", ShortcutAction::Record),
             ("--ocr", ShortcutAction::Ocr), ("--library", ShortcutAction::Library)] {
-            assert_eq!(super::desktop_shortcut_action(&["kiri".into(), flag.into()]), Some(action));
+            assert_eq!(super::desktop_shortcut_action(&["kaka".into(), flag.into()]), Some(action));
         }
-        assert_eq!(super::desktop_shortcut_action(&["kiri".into(), "--unknown".into()]), None);
-        assert_eq!(super::desktop_shortcut_action(&["kiri".into(), "notes--record".into()]), None);
+        assert_eq!(super::desktop_shortcut_action(&["kaka".into(), "--unknown".into()]), None);
+        assert_eq!(super::desktop_shortcut_action(&["kaka".into(), "notes--record".into()]), None);
     }
 
     #[test]
@@ -956,9 +965,9 @@ mod tests {
             ("--finish-scroll-capture", Finish),
             ("--cancel-scroll-capture", Cancel),
         ] {
-            assert_eq!(super::desktop_scroll_action(&["kiri".into(), flag.into()]), Some(action));
+            assert_eq!(super::desktop_scroll_action(&["kaka".into(), flag.into()]), Some(action));
             for argument in [format!("notes{flag}"), format!("{flag}=true"), format!("{flag}.txt")] {
-                assert_eq!(super::desktop_scroll_action(&["kiri".into(), argument]), None);
+                assert_eq!(super::desktop_scroll_action(&["kaka".into(), argument]), None);
             }
         }
         for flags in [
@@ -967,20 +976,20 @@ mod tests {
         ] {
             assert_eq!(super::desktop_scroll_action(&flags.map(String::from)), Some(Cancel));
         }
-        assert_eq!(super::desktop_scroll_action(&["kiri".into(), "--capture".into()]), None);
+        assert_eq!(super::desktop_scroll_action(&["kaka".into(), "--capture".into()]), None);
     }
 
     #[test]
     fn desktop_controls_and_capture_launch_without_opening_library() {
         for flag in ["--finish-scroll-capture", "--cancel-scroll-capture", "--capture", "--record", "--ocr"] {
-            assert!(!super::desktop_launch_opens_library(&["kiri".into(), flag.into()]));
+            assert!(!super::desktop_launch_opens_library(&["kaka".into(), flag.into()]));
         }
         assert!(!super::desktop_launch_opens_library(&[
-            "kiri".into(), "--library".into(), "--finish-scroll-capture".into(),
+            "kaka".into(), "--library".into(), "--finish-scroll-capture".into(),
         ]));
-        assert!(super::desktop_launch_opens_library(&["kiri".into()]));
-        assert!(super::desktop_launch_opens_library(&["kiri".into(), "--library".into()]));
-        assert!(super::desktop_launch_opens_library(&["kiri".into(), "--unknown".into()]));
+        assert!(super::desktop_launch_opens_library(&["kaka".into()]));
+        assert!(super::desktop_launch_opens_library(&["kaka".into(), "--library".into()]));
+        assert!(super::desktop_launch_opens_library(&["kaka".into(), "--unknown".into()]));
     }
 
     #[test]

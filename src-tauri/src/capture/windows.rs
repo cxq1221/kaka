@@ -56,7 +56,7 @@ pub fn capture_active_display() -> Result<CapturedDisplay> {
         .is_err()
     {
         bail!(
-            "A previous Windows screen capture is still waiting for the operating system. Restart Kiri if capture remains unavailable."
+            "A previous Windows screen capture is still waiting for the operating system. Restart Kaka if capture remains unavailable."
         );
     }
 
@@ -95,7 +95,7 @@ fn receive_frozen_capture<T>(
         Ok(FrozenCaptureMessage::Finished(result)) => return result,
         Ok(FrozenCaptureMessage::NativeFrameReady) => {}
         Err(mpsc::RecvTimeoutError::Timeout) => bail!(
-            "Windows screen capture did not return a frame within {} seconds. Restart Kiri if capture remains unavailable.",
+            "Windows screen capture did not return a frame within {} seconds. Restart Kaka if capture remains unavailable.",
             native_frame_timeout.as_secs()
         ),
         Err(mpsc::RecvTimeoutError::Disconnected) => {

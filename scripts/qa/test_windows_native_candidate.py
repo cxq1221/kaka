@@ -21,8 +21,8 @@ spec.loader.exec_module(candidate)
 
 class CandidateTests(unittest.TestCase):
     def setUp(self):
-        self.run = {"id": 123, "repository": {"full_name": "yuxino/kiri", "id": 1},
-                    "head_repository": {"full_name": "yuxino/Kiri"}, "head_sha": "a" * 40,
+        self.run = {"id": 123, "repository": {"full_name": "cxq1221/kaka", "id": 1},
+                    "head_repository": {"full_name": "cxq1221/kaka"}, "head_sha": "a" * 40,
                     "path": candidate.WORKFLOW, "event": "workflow_dispatch", "status": "completed", "run_attempt": 1}
         self.job = {"id": 456, "name": candidate.JOB, "status": "completed", "conclusion": "failure", "steps": [
             *({"name": name, "conclusion": "success"} for name in candidate.BUILD_STEPS),
@@ -137,13 +137,13 @@ class CandidateTests(unittest.TestCase):
                 candidate.checkout_sha(wrong)
 
     def test_artifact_requires_official_run_head_and_archive_digest(self):
-        artifact = {"name": "kiri-windows", "expired": False, "digest": "sha256:" + "b" * 64,
+        artifact = {"name": "kaka-windows", "expired": False, "digest": "sha256:" + "b" * 64,
                     "workflow_run": {"id": 123, "repository_id": 1, "head_sha": "a" * 40}}
-        self.assertEqual(candidate.artifact_for(self.run, [artifact], "kiri-windows"), artifact)
+        self.assertEqual(candidate.artifact_for(self.run, [artifact], "kaka-windows"), artifact)
         for values in ([artifact, artifact], [{**artifact, "expired": True}], [{**artifact, "digest": None}],
                        [{**artifact, "workflow_run": {**artifact["workflow_run"], "head_sha": "c" * 40}}]):
             with self.subTest(values=values), self.assertRaises(RuntimeError):
-                candidate.artifact_for(self.run, values, "kiri-windows")
+                candidate.artifact_for(self.run, values, "kaka-windows")
 
 
 class ArchiveTests(unittest.TestCase):
@@ -158,18 +158,18 @@ class ArchiveTests(unittest.TestCase):
             bundle.writestr(filename, b"public immutable executable fixture")
 
     def test_verified_archive_preserves_exact_executable_bytes(self):
-        self.make("kiri.exe")
+        self.make("kaka.exe")
         candidate.extract_verified(self.archive, self.root / "verified", "sha256:" + candidate.digest(self.archive))
-        self.assertEqual((self.root / "verified/kiri.exe").read_bytes(), b"public immutable executable fixture")
+        self.assertEqual((self.root / "verified/kaka.exe").read_bytes(), b"public immutable executable fixture")
 
     def test_archive_checksum_mismatch_is_rejected_before_extraction(self):
-        self.make("kiri.exe")
+        self.make("kaka.exe")
         with self.assertRaises(RuntimeError):
             candidate.extract_verified(self.archive, self.root / "verified", "sha256:" + "0" * 64)
         self.assertFalse((self.root / "verified").exists())
 
     def test_archive_cannot_escape_its_candidate_directory(self):
-        for index, filename in enumerate(("../kiri.exe", "/kiri.exe", "C:/kiri.exe", "folder/../../kiri.exe")):
+        for index, filename in enumerate(("../kaka.exe", "/kaka.exe", "C:/kaka.exe", "folder/../../kaka.exe")):
             with self.subTest(filename=filename):
                 self.make(filename)
                 with self.assertRaises(RuntimeError):
@@ -218,10 +218,10 @@ class ConfirmationExecutableTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.compiled = self.root / "src-tauri/target/release/kiri.exe"
+        self.compiled = self.root / "src-tauri/target/release/kaka.exe"
         self.compiled.parent.mkdir(parents=True)
         self.compiled.write_bytes(b"compiled portable payload")
-        self.installed = self.root / "Program Files/Kiri 测试/kiri.exe"
+        self.installed = self.root / "Program Files/Kiri 测试/kaka.exe"
         self.installed.parent.mkdir(parents=True)
         self.installed.write_bytes(b"NSIS installed payload")
         previous = Path.cwd()
@@ -270,16 +270,16 @@ class NativePackageIsolationTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.roaming, self.local = self.root / "Roaming", self.root / "Local"
-        self.profiles = (self.roaming / "kiri", self.local / "io.yuxino.kiri")
+        self.profiles = (self.roaming / "kiri", self.local / "io.cxq1221.kaka")
         for path in self.profiles:
             path.mkdir(parents=True)
             (path / "prior.txt").write_text("original QA profile")
         self.recovery, self.output = self.root / "recovery", self.root / "evidence"
         self.recovery.mkdir(); self.output.mkdir()
-        self.portable, self.installed = self.root / "portable/kiri.exe", self.root / "installed/kiri.exe"
+        self.portable, self.installed = self.root / "portable/kaka.exe", self.root / "installed/kaka.exe"
         for path in (self.portable, self.installed):
             path.parent.mkdir(); path.write_bytes(b"application")
-        (self.portable.parent / "kiri.portable").write_text("")
+        (self.portable.parent / "kaka.portable").write_text("")
         self.report = {"success": False}
         self.events, self.labels = [], []
         self.scope = 0
@@ -311,7 +311,7 @@ class NativePackageIsolationTests(unittest.TestCase):
             self.assertFalse(cache.exists(), "The next executable reused the previous WebView profile")
             self.assertFalse((self.profiles[0] / "prior.txt").exists())
             cache.mkdir(); (cache / "owner.txt").write_text(label)
-            log = self.profiles[1] / "logs/kiri.log"
+            log = self.profiles[1] / "logs/kaka.log"
             log.parent.mkdir(); log.write_text(label + " log\n")
             (self.profiles[0] / "generated.txt").write_text(label)
             if self.extra_portable_file:

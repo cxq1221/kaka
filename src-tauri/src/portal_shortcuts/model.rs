@@ -1,15 +1,15 @@
 //! UI state contains only bindings confirmed by the current portal session.
 use serde::Serialize;
 
-pub const APP_ID: &str = "io.yuxino.kiri";
+pub const APP_ID: &str = "io.cxq1221.kaka";
 pub const ACTIONS: [(&str, &str, &str); 3] = [
-    ("capture", "Capture", "kiri --capture"),
+    ("capture", "Capture", "kaka --capture"),
     (
         "pause-resume",
         "Pause/Resume Recording",
-        "kiri --toggle-recording-pause",
+        "kaka --toggle-recording-pause",
     ),
-    ("stop", "Stop Recording", "kiri --stop-recording"),
+    ("stop", "Stop Recording", "kaka --stop-recording"),
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

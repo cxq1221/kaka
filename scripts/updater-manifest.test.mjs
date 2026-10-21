@@ -11,7 +11,7 @@ test("builds one signed static manifest for Universal macOS and Windows NSIS", (
     tag: "v1.4.9",
     notes: "Native media and signed updates.",
     pubDate: "2026-09-02T10:00:00Z",
-    macAsset: "kiri.app.tar.gz",
+    macAsset: "Kaka.app.tar.gz",
     macSignature: signature,
     windowsAsset: "Kiri_1.4.9_x64-setup.exe",
     windowsSignature: signature,
@@ -25,7 +25,7 @@ test("builds one signed static manifest for Universal macOS and Windows NSIS", (
   );
   assert.strictEqual(manifest.platforms["darwin-aarch64"], manifest.platforms["darwin-x86_64"]);
   assert.strictEqual(manifest.platforms["windows-x86_64"], manifest.platforms["windows-x86_64-nsis"]);
-  assert.match(manifest.platforms["darwin-aarch64"].url, /\/v1.4.9\/kiri.app.tar.gz$/);
+  assert.match(manifest.platforms["darwin-aarch64"].url, /\/v1.4.9\/Kaka.app.tar.gz$/);
   assert.match(manifest.platforms["windows-x86_64"].url, /Kiri_1.4.9_x64-setup.exe$/);
 });
 
@@ -35,7 +35,7 @@ test("rejects mismatched tags, malformed signatures, and nested asset paths", ()
     tag: "v1.4.9",
     notes: "notes",
     pubDate: "2026-09-02T10:00:00Z",
-    macAsset: "kiri.app.tar.gz",
+    macAsset: "Kaka.app.tar.gz",
     macSignature: signature,
     windowsAsset: "Kiri.exe",
     windowsSignature: signature,

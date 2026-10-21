@@ -30,19 +30,19 @@ jobs:
           if ($env:RELEASE_TAG -ne "v$version") { throw 'Release version mismatch' }
           $draft = gh release view $env:RELEASE_TAG --json isDraft | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0 -or -not $draft.isDraft) { throw 'Expected an existing draft release' }
-          gh release download $env:RELEASE_TAG --pattern "kiri_${version}_x64-setup.exe" --dir candidate
+          gh release download $env:RELEASE_TAG --pattern "kaka_${version}_x64-setup.exe" --dir candidate
           if ($LASTEXITCODE -ne 0) { throw 'Installer download failed' }
-          $installer = Get-Item "candidate/kiri_${version}_x64-setup.exe"
+          $installer = Get-Item "candidate/kaka_${version}_x64-setup.exe"
           $install = Join-Path $env:RUNNER_TEMP 'kiri-installed-review'
           $result = Start-Process $installer.FullName -ArgumentList @('/S', "/D=$install") -Wait -PassThru
           if ($result.ExitCode -ne 0) { throw "Installation failed: $($result.ExitCode)" }
           New-Item -ItemType Directory -Force src-tauri/target/release | Out-Null
-          Copy-Item (Join-Path $install 'kiri.exe') src-tauri/target/release/kiri.exe
+          Copy-Item (Join-Path $install 'kaka.exe') src-tauri/target/release/kaka.exe
           ./scripts/package-windows-portable.ps1
-          "KIRI_QA_INSTALLED_EXE=$(Join-Path $install 'kiri.exe')" >> $env:GITHUB_ENV
-          "KIRI_QA_PORTABLE_EXE=$(Join-Path $env:RUNNER_TEMP 'kiri-portable-verify/kiri.exe')" >> $env:GITHUB_ENV
+          "KIRI_QA_INSTALLED_EXE=$(Join-Path $install 'kaka.exe')" >> $env:GITHUB_ENV
+          "KIRI_QA_PORTABLE_EXE=$(Join-Path $env:RUNNER_TEMP 'kiri-portable-verify/kaka.exe')" >> $env:GITHUB_ENV
           New-Item -ItemType Directory -Force windows-release-review | Out-Null
-          Get-FileHash $installer.FullName, (Join-Path $install 'kiri.exe'), "Kiri-$version-Windows-x64-Portable.zip" |
+          Get-FileHash $installer.FullName, (Join-Path $install 'kaka.exe'), "Kaka-$version-Windows-x64-Portable.zip" |
             Select-Object Algorithm, Hash, @{Name='File';Expression={Split-Path $_.Path -Leaf}} |
             ConvertTo-Json | Set-Content windows-release-review/package-hashes.json
       - name: Verify both native packages
@@ -64,5 +64,5 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
-          gh release upload $env:RELEASE_TAG "Kiri-$version-Windows-x64-Portable.zip" --clobber
+          gh release upload $env:RELEASE_TAG "Kaka-$version-Windows-x64-Portable.zip" --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Portable upload failed' }

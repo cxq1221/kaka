@@ -92,7 +92,7 @@ private final class Delegate: NSObject, NSApplicationDelegate, WKScriptMessageHa
             if body["capture"] as? Bool == true {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     let process = Process()
-                    process.executableURL = URL(fileURLWithPath: "/Applications/Kiri.app/Contents/MacOS/kiri")
+                    process.executableURL = URL(fileURLWithPath: "/Applications/Kaka.app/Contents/MacOS/Kaka")
                     process.arguments = ["--capture"]
                     try? process.run()
                 }

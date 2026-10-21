@@ -39,7 +39,7 @@ try:
         try:
             if gate not in timeouts:
                 raise RuntimeError("Unknown original native gate: " + gate)
-            for app, expected in ((Path("src-tauri/target/release/kiri.exe"), manifest["compiled_executable_sha256"]),
+            for app, expected in ((Path("src-tauri/target/release/kaka.exe"), manifest["compiled_executable_sha256"]),
                                   (Path(os.environ["KIRI_QA_INSTALLED_EXE"]), manifest["executable_sha256"]),
                                   (Path(os.environ["KIRI_QA_PORTABLE_EXE"]), manifest["compiled_executable_sha256"])):
                 if hashlib.sha256(app.read_bytes()).hexdigest() != expected:

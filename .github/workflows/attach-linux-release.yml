@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       candidate_run_id:
-        description: Successful build.yml run containing kiri-linux-deb
+        description: Successful build.yml run containing kaka-linux-deb
         required: true
         type: string
 
@@ -53,8 +53,8 @@ jobs:
       - name: Download the original Linux candidate
         uses: actions/download-artifact@v8
         with:
-          name: kiri-linux-deb
-          path: ${{ runner.temp }}/kiri-linux-deb
+          name: kaka-linux-deb
+          path: ${{ runner.temp }}/kaka-linux-deb
           github-token: ${{ github.token }}
           run-id: ${{ inputs.candidate_run_id }}
           digest-mismatch: error
@@ -65,5 +65,5 @@ jobs:
           python3 release-tools/scripts/qa/attach-linux-release.py \
             --tag "$RELEASE_TAG" --run "$CANDIDATE_RUN_ID" \
             --source-dir "$GITHUB_WORKSPACE/source" \
-            --package-dir "$RUNNER_TEMP/kiri-linux-deb" \
+            --package-dir "$RUNNER_TEMP/kaka-linux-deb" \
             --evidence "$RUNNER_TEMP/linux-attachment-verification.json"

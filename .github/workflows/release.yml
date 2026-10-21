@@ -65,7 +65,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: Kiri ${{ github.ref_name }}
+          releaseName: Kaka ${{ github.ref_name }}
           releaseBody: ${{ steps.release-notes.outputs.body }}
           releaseDraft: true
           updaterJsonPreferNsis: true
@@ -87,8 +87,8 @@ jobs:
           $install = Join-Path $env:RUNNER_TEMP 'kiri-installed-review'
           $installerProcess = Start-Process $installers[0].FullName -ArgumentList @('/S', "/D=$install") -PassThru -Wait
           if ($installerProcess.ExitCode -ne 0) { throw "NSIS installation failed: $($installerProcess.ExitCode)" }
-          $env:KIRI_QA_PORTABLE_EXE = Join-Path $env:RUNNER_TEMP 'kiri-portable-verify/kiri.exe'
-          $env:KIRI_QA_INSTALLED_EXE = Join-Path $install 'kiri.exe'
+          $env:KIRI_QA_PORTABLE_EXE = Join-Path $env:RUNNER_TEMP 'kiri-portable-verify/kaka.exe'
+          $env:KIRI_QA_INSTALLED_EXE = Join-Path $install 'kaka.exe'
           if (-not (Test-Path $env:KIRI_QA_INSTALLED_EXE)) { throw 'Installed release executable is missing' }
           "KIRI_QA_INSTALLED_EXE=$env:KIRI_QA_INSTALLED_EXE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           python scripts/qa/windows-release-native.py
@@ -131,4 +131,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
-          gh release upload "${{ github.ref_name }}" "Kiri-$version-Windows-x64-Portable.zip" --clobber
+          gh release upload "${{ github.ref_name }}" "Kaka-$version-Windows-x64-Portable.zip" --clobber

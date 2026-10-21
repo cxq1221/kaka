@@ -1,4 +1,4 @@
-# Kiri repository guide for agents
+# Kaka repository guide for agents
 
 This file is the first source of truth for agents working in this repository.
 Read it before editing, then read `docs/architecture.md`.
@@ -17,7 +17,7 @@ Read it before editing, then read `docs/architecture.md`.
 
 ## Product contract
 
-Kiri is a local-first capture utility for macOS, Windows, and
+Kaka is a local-first capture utility for macOS, Windows, and
 Linux. Preserve these decisions:
 
 - The default global capture shortcut is `⇧⌘A` on macOS and `Shift+Ctrl+A` on
@@ -26,7 +26,7 @@ Linux. Preserve these decisions:
   keys with optional modifiers and can restore this default. Bare typing/navigation
   keys and Shift-only choices need explicit confirmation; function/media keys or
   combinations containing Control, Alt, or Meta save directly (ADR 0111).
-  On Wayland, the user configures `kiri --capture` in desktop settings, or opts
+  On Wayland, the user configures `kaka --capture` in desktop settings, or opts
   in to GlobalShortcuts Portal setup where the actual interface is available.
   Preserve command guidance and truthful session/binding state (ADR 0075). Never
   install compositor bindings or FIFOs automatically (ADR 0051).
@@ -42,17 +42,17 @@ Linux. Preserve these decisions:
   resizable with eight handles. Linux X11 supplies window bounds; Wayland uses
   region drag and currently rejects multiple connected displays before capture.
 - Screenshot completion is clipboard-first and returns focus to the original
-  application. Do not open the Kiri library after every capture.
+  application. Do not open the Kaka library after every capture.
 - Escape cancels capture and countdown; Return confirms a screenshot.
 - Annotation tools appear immediately after region selection. Existing text
   and shapes remain selectable and editable; size controls update live.
 - Text backgrounds default to transparent. Mosaic is a continuous brush with
   adjustable diameter and intensity.
-- Recording is Retina/DPI-scale, high-quality MP4. Kiri's recording controls
+- Recording is Retina/DPI-scale, high-quality MP4. Kaka's recording controls
   and paused time must not appear in the exported video.
   Linux MP4 recording can include system audio and microphone through the local
   PulseAudio/PipeWire audio service and hides the floating control panel; use tray
-  actions or `kiri --toggle-recording-pause` / `kiri --stop-recording`. ScreenCast
+  actions or `kaka --toggle-recording-pause` / `kaka --stop-recording`. ScreenCast
   consent must select the same display as the frozen screenshot.
 - The optional high-contrast red click ripple is visible live and is also captured.
 - The 3-2-1 countdown is centered and compact; it must not dim the selected
@@ -97,7 +97,7 @@ Linux. Preserve these decisions:
   Linux bridging lives in `src-tauri/src/linux_media.rs`.
 - `src-tauri/src/commands.rs` — the AppModel-equivalent command surface.
 - `src-tauri/src/{ocr,gif,thumbnail,protocol,state}.rs` — OCR, GIF export,
-  thumbnails, `kiri://` protocol, shared state.
+  thumbnails, `kaka://` protocol, shared state.
 - `scripts/` — packaging, stable development signing, and app-icon validation.
 - `docs/architecture.md` — current runtime structure and platform boundaries.
 - `docs/README.md` — index of current documentation and accepted decisions.
@@ -120,13 +120,14 @@ Linux. Preserve these decisions:
   Linux uses portal ScreenCast/PipeWire and system GStreamer for H.264 MP4,
   with optional PulseAudio monitor/input capture mixed into AAC on the same clock.
   macOS pause/resume segments are merged with AVFoundation.
-- `AssetLibrary` is the persistence boundary. It shares the Swift version's
-  storage layout (`~/Library/Application Support/kiri` on macOS,
-  `%APPDATA%\kiri` on Windows, `$XDG_DATA_HOME/kiri` or `~/.local/share/kiri` on
-  Linux) so existing libraries keep working. Preserve
+- `AssetLibrary` is the persistence boundary. New installs use the Kaka
+  directory (`~/Library/Application Support/kaka` on macOS, `%APPDATA%\kaka` on
+  Windows, `$XDG_DATA_HOME/kaka` or `~/.local/share/kaka` on Linux). If only the
+  legacy `kiri` directory exists, startup keeps using it so existing libraries
+  remain visible. Preserve
   recoverable Trash and never manipulate a user's library directly during QA.
 - Frontend windows render by `?window=` query param; the frozen capture is
-  served through the `kiri://` protocol from memory.
+  served through the `kaka://` protocol from memory.
 
 ## Required verification
 
@@ -148,14 +149,14 @@ Cargo registry as part of repository cleanup.
 
 Do not add a runtime synthetic-capture mode to the user-facing application.
 Capture QA must use unit-level injected data or an isolated test harness, never
-replace the visible desktop with a mock screen inside normal dev or prod Kiri.
+replace the visible desktop with a mock screen inside normal dev or prod Kaka.
 
 For changes to capture, recording, permissions, focus, keyboard handling, or
 overlay windows, also package and test the fixed-path app:
 
 ```bash
 ./scripts/install-app.sh
-open /Applications/Kiri.app
+open /Applications/Kaka.app
 ```
 
 Use a stable signing identity (`KIRI_SIGNING_IDENTITY`). Do not silently use
@@ -164,7 +165,7 @@ Screen Recording/Input Monitoring permissions. Windows builds are verified
 through GitHub Actions (`.github/workflows/build.yml`).
 
 Linux changes also require the Ubuntu job's `.deb` build/install and isolated
-X11 desktop check (`bash scripts/qa/linux-native.sh /usr/bin/kiri`). Its
+X11 desktop check (`bash scripts/qa/linux-native.sh /usr/bin/kaka`). Its
 temporary HOME/XDG directories contain only test assets. The Xvfb result does
 not establish GNOME Wayland portal, hardware, or mixed-scale acceptance; use
 the separate checklist in `docs/linux.md` and report those limits explicitly.
@@ -193,9 +194,9 @@ the separate checklist in `docs/linux.md` and report those limits explicitly.
   background styles.
 - Verify mosaic brush diameter/intensity and editing of existing annotations.
 - For recording, inspect extracted frames around start, click ripple,
-  pause/resume, and stop. Confirm clarity and absence of all Kiri controls.
+  pause/resume, and stop. Confirm clarity and absence of all Kaka controls.
 - Avoid leaving QA captures in the user's library. Move only agent-created
-  test assets to Kiri Trash, which is recoverable; never empty Trash without
+  test assets to Kaka Trash, which is recoverable; never empty Trash without
   consent.
 
 ## Localization and documentation
@@ -224,7 +225,7 @@ the separate checklist in `docs/linux.md` and report those limits explicitly.
 - Do not delete capture data, reset privacy permissions, or replace signing
   identities as a troubleshooting shortcut.
 - Never include private captures, credentials, personal absolute paths, or the
-  contents of `~/Library/Application Support/kiri/` in commits.
+  contents of `~/Library/Application Support/kaka/` in commits.
 
 ## Release language
 
