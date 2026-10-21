@@ -25,6 +25,8 @@ use crate::platform;
 use crate::shortcut_settings::{
     RegistrationStatus as ShortcutRegistrationStatus, ShortcutAction, ShortcutSettingDto,
 };
+#[cfg(target_os = "macos")]
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 use crate::state::RecoveryAction;
 use crate::state::{
@@ -2438,6 +2440,11 @@ fn finish_deferred_macos_capture(
         }
         return Err(format!("The capture overlay could not be shown: {error}"));
     }
+    let overlay_focused = app
+        .get_webview_window("overlay")
+        .and_then(|window| window.is_focused().ok())
+        .unwrap_or(false);
+    sync_capture_escape_shortcut(app, capture_id, overlay_focused);
     let _ = app.emit_to("overlay", "capture-started", &context);
 
     let encode_app = app.clone();
@@ -2531,6 +2538,112 @@ fn finish_deferred_macos_capture(
     });
 
     Ok(context)
+}
+
+#[cfg(target_os = "macos")]
+fn capture_escape_shortcut() -> Shortcut {
+    Shortcut::new(None, Code::Escape)
+}
+
+/// The resident overlay does not become key when capture starts in another
+/// application. Register Escape only for that inactive state so the key can
+/// reach the frontend without activating Kaka or switching Spaces.
+#[cfg(target_os = "macos")]
+pub(crate) fn sync_capture_escape_shortcut(
+    app: &AppHandle,
+    capture_id: uuid::Uuid,
+    overlay_focused: bool,
+) {
+    if overlay_focused {
+        release_capture_escape_shortcut(app, capture_id);
+        return;
+    }
+
+    let state = app.state::<AppState>();
+    let active_id = state
+        .capture
+        .lock()
+        .unwrap()
+        .session
+        .as_ref()
+        .map(|session| session.capture_id);
+    if active_id != Some(capture_id) {
+        return;
+    }
+
+    let mut owner = state.capture_escape_shortcut.lock().unwrap();
+    if owner.is_some() {
+        return;
+    }
+    let shortcut = capture_escape_shortcut();
+    if app.global_shortcut().is_registered(shortcut) {
+        log::warn!("capture: bare Escape is already registered; using WebView key handling");
+        return;
+    }
+    match app.global_shortcut().register(shortcut) {
+        Ok(()) => {
+            *owner = Some(capture_id);
+            log::info!("capture: temporary Escape registered capture_id={capture_id}");
+        }
+        Err(error) => {
+            log::warn!("capture: temporary Escape registration failed: {error}");
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn release_capture_escape_shortcut(app: &AppHandle, capture_id: uuid::Uuid) {
+    let Some(state) = app.try_state::<AppState>() else {
+        return;
+    };
+    let owns_shortcut = {
+        let mut owner = state.capture_escape_shortcut.lock().unwrap();
+        if owner.as_ref() == Some(&capture_id) {
+            owner.take();
+            true
+        } else {
+            false
+        }
+    };
+    if owns_shortcut {
+        let _ = app.global_shortcut().unregister(capture_escape_shortcut());
+        log::info!("capture: temporary Escape released capture_id={capture_id}");
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn handle_capture_escape(
+    app: &AppHandle,
+    shortcut: &Shortcut,
+    event: ShortcutState,
+) -> bool {
+    if *shortcut != capture_escape_shortcut() {
+        return false;
+    }
+    let Some(state) = app.try_state::<AppState>() else {
+        return false;
+    };
+    let capture_id = state
+        .capture
+        .lock()
+        .unwrap()
+        .session
+        .as_ref()
+        .map(|session| session.capture_id);
+    let Some(capture_id) = capture_id else {
+        return false;
+    };
+    if *state.capture_escape_shortcut.lock().unwrap() != Some(capture_id) {
+        return false;
+    }
+    if event == ShortcutState::Pressed {
+        let _ = app.emit_to(
+            "overlay",
+            "capture-escape-requested",
+            serde_json::json!({ "captureId": capture_id }),
+        );
+    }
+    true
 }
 
 #[cfg(target_os = "macos")]
@@ -2818,6 +2931,8 @@ pub(crate) fn teardown_cancelled_capture(
     session: CaptureSession,
     close_overlays: bool,
 ) {
+    #[cfg(target_os = "macos")]
+    release_capture_escape_shortcut(app, session.capture_id);
     invalidate_capture_resources(app, &session);
     if close_overlays {
         for label in &session.overlay_labels {

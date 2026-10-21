@@ -14,6 +14,7 @@ import {
   type QrScanDto,
   type RecordingOptions,
   onCaptureEnded,
+  onCaptureEscapeRequested,
   onCaptureImageReady,
   onCaptureStarted,
   onCaptureWindowRects,
@@ -583,6 +584,13 @@ export function OverlayWindow() {
       .catch(() => {});
   }, [discardPreparedOcr, discardQr, resetCapturePresentation]);
 
+  const cancelCaptureWithEscape = useCallback(() => {
+    if (completionLock.locked) return;
+    if (phaseRef.current === "qr-result") { closeQr(); return; }
+    if (phaseRef.current === "annotating" && canvasRef.current?.cancelTextEditing()) return;
+    cancel();
+  }, [cancel, closeQr, completionLock]);
+
   const complete = useCallback(
     async (pinOnTop = false) => {
       if (!imageReady) return;
@@ -794,6 +802,23 @@ export function OverlayWindow() {
     window.addEventListener("keydown", onEscape, true);
     return () => window.removeEventListener("keydown", onEscape, true);
   }, [cancel, closeQr, completionLock]);
+
+  // While the resident overlay is not key, macOS routes Escape through the
+  // temporary native shortcut instead of the WebView keyboard event above.
+  useEffect(() => {
+    let disposed = false;
+    let unlisten = () => {};
+    void onCaptureEscapeRequested(captureId => {
+      if (captureId === currentCaptureIdRef.current) cancelCaptureWithEscape();
+    }).then(stop => {
+      if (disposed) stop();
+      else unlisten = stop;
+    }).catch(error => reportFrontend(`capture Escape listener failed: ${String(error)}`));
+    return () => {
+      disposed = true;
+      unlisten();
+    };
+  }, [cancelCaptureWithEscape]);
 
   // --- keyboard ---
   useEffect(() => {

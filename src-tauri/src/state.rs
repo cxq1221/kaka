@@ -31,6 +31,9 @@ pub struct AppState {
     pub(crate) capture_schedule: CaptureScheduleGate,
     pub(crate) capture_start: CaptureStartGate,
     pub capture: std::sync::Mutex<CaptureFlow>,
+    /// Capture id that owns the temporary bare-Escape registration on macOS.
+    #[cfg(target_os = "macos")]
+    pub(crate) capture_escape_shortcut: std::sync::Mutex<Option<uuid::Uuid>>,
     /// Successful capture feedback waits here until the owner overlay has
     /// actually been destroyed. Creating another WebView from the synchronous
     /// confirmation IPC can block WebView2 before its response is delivered.
@@ -587,6 +590,8 @@ impl AppState {
             capture_schedule: Default::default(),
             capture_start: Default::default(),
             capture: Default::default(),
+            #[cfg(target_os = "macos")]
+            capture_escape_shortcut: Default::default(),
             scroll_capture: Default::default(),
             pending_capture_completion: Default::default(),
             capture_pin_placements: Default::default(),

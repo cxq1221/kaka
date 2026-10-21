@@ -75,6 +75,8 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
                     use tauri_plugin_global_shortcut::ShortcutState;
+                    #[cfg(target_os = "macos")]
+                    if commands::handle_capture_escape(app, shortcut, event.state()) { return; }
                     if scroll_capture::handle_escape(app, shortcut, event.state()) { return; }
                     let Some(bindings) = app.try_state::<shortcut_settings::ShortcutBindings>() else { return; };
                     if event.state() == ShortcutState::Released {
@@ -196,6 +198,27 @@ pub fn run() {
                     );
                 }
                 _ => {}
+            }
+            #[cfg(target_os = "macos")]
+            if window.label() == "overlay" {
+                if let tauri::WindowEvent::Focused(focused) = event {
+                    if let Some(state) = window.try_state::<AppState>() {
+                        let capture_id = state
+                            .capture
+                            .lock()
+                            .unwrap()
+                            .session
+                            .as_ref()
+                            .map(|session| session.capture_id);
+                        if let Some(capture_id) = capture_id {
+                            commands::sync_capture_escape_shortcut(
+                                window.app_handle(),
+                                capture_id,
+                                *focused,
+                            );
+                        }
+                    }
+                }
             }
             if window.label() == "library" {
                 if let tauri::WindowEvent::Focused(focused) = event {

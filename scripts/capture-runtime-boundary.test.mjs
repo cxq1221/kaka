@@ -152,3 +152,52 @@ test("macOS capture overlays receive the first mouse event without taking focus"
     "the capture overlay fallback must preserve the same first-drag behavior",
   );
 });
+
+test("macOS capture keeps Escape available while its overlay is not the key window", () => {
+  const commands = readFileSync(join(rustRoot, "commands.rs"), "utf8");
+  const app = readFileSync(join(rustRoot, "lib.rs"), "utf8");
+  const overlay = readFileSync(
+    join(repositoryRoot, "src", "windows", "OverlayWindow.tsx"),
+    "utf8",
+  );
+  const ipc = readFileSync(join(repositoryRoot, "src", "lib", "ipc.ts"), "utf8");
+  const finish = commands.match(
+    /fn finish_deferred_macos_capture\([\s\S]*?(?=\n#\[cfg\(target_os = "macos"\)\]\nfn show_resident_overlay)/,
+  )?.[0];
+  const teardown = commands.match(
+    /pub\(crate\) fn teardown_cancelled_capture\([\s\S]*?\n\}/,
+  )?.[0];
+
+  assert.ok(finish, "the resident macOS capture flow must remain present");
+  assert.ok(teardown, "capture teardown must remain present");
+  assert.match(
+    finish,
+    /show_resident_overlay\(app, overlay_frame, was_kiri_frontmost\)[\s\S]*sync_capture_escape_shortcut/,
+    "activation-independent Escape must be armed after the resident overlay is shown",
+  );
+  assert.match(
+    teardown,
+    /release_capture_escape_shortcut\(app, session\.capture_id\)/,
+    "capture teardown must release a temporary Escape registration",
+  );
+  assert.match(
+    app,
+    /commands::handle_capture_escape\(app, shortcut, event\.state\(\)\)/,
+    "the global shortcut handler must route Escape to the active capture",
+  );
+  assert.match(
+    app,
+    /WindowEvent::Focused\(focused\)[\s\S]*sync_capture_escape_shortcut/,
+    "focus changes must hand Escape back to the WebView",
+  );
+  assert.match(
+    ipc,
+    /onCaptureEscapeRequested[\s\S]*capture-escape-requested/,
+    "native Escape must be delivered to the overlay frontend",
+  );
+  assert.match(
+    overlay,
+    /onCaptureEscapeRequested[\s\S]*cancelCaptureWithEscape/,
+    "the overlay must run its normal Escape semantics for native Escape",
+  );
+});

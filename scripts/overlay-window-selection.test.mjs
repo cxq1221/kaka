@@ -55,6 +55,7 @@ async function overlay(t, { windowRects = [floating, normal, background], scale 
       "../lib/ipc": { DEFAULT_RECORDING_OPTIONS: recordingOptions,
         onCaptureStarted: async () => () => {},
         onCaptureImageReady: async () => () => {},
+        onCaptureEscapeRequested: async () => () => {},
         onCaptureWindowRects: async () => () => {},
         onCaptureEnded: async () => () => {},
         api: {

@@ -600,6 +600,10 @@ export function onCaptureImageReady(handler: (captureId: string) => void): Promi
   return listen<{ captureId: string }>("capture-image-ready", event => handler(event.payload.captureId));
 }
 
+export function onCaptureEscapeRequested(handler: (captureId: string) => void): Promise<UnlistenFn> {
+  return listen<{ captureId: string }>("capture-escape-requested", event => handler(event.payload.captureId));
+}
+
 export function onCaptureWindowRects(
   handler: (captureId: string, windowRects: RectDto[]) => void,
 ): Promise<UnlistenFn> {
