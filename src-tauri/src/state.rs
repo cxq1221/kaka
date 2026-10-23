@@ -23,7 +23,10 @@ use crate::core::recording_recovery::RecordingRecoveryStore;
 use crate::record::SegmentEncoder;
 
 const PASSIVE_TOAST_WIDTH: f64 = 360.0;
-const COMPLETION_TOAST_WIDTH: f64 = 420.0;
+const COMPLETION_TOAST_WIDTH: f64 = 472.0;
+const COMPLETION_TOAST_HEIGHT: f64 = 184.0;
+const COMPLETION_FAILURE_TOAST_HEIGHT: f64 = 236.0;
+const COMPLETION_STARTUP_FAILURE_TOAST_HEIGHT: f64 = 156.0;
 
 pub struct AppState {
     pub library: std::sync::Mutex<LibraryContext>,
@@ -39,6 +42,10 @@ pub struct AppState {
     /// confirmation IPC can block WebView2 before its response is delivered.
     pub(crate) scroll_capture: crate::scroll_capture::ScrollCaptureState,
     pub pending_capture_completion: std::sync::Mutex<Option<PendingCaptureCompletion>>,
+    /// Latest completion card snapshot. The toast WebView can mount after a
+    /// processing-to-ready event was emitted, so the renderer reads this back
+    /// once its listener is installed and merges by monotonic revision.
+    pub(crate) completion_preview: std::sync::Mutex<Option<CompletionPreviewSnapshot>>,
     /// Bounded session-only origins for toolbar/completion-card references.
     pub capture_pin_placements: std::sync::Mutex<crate::core::pin_placement::RecentCapturePinPlacements>,
     pub recording: std::sync::Mutex<RecordingFlow>,
@@ -180,7 +187,7 @@ pub enum CaptureMode {
 
 pub struct CaptureSession {
     pub capture_id: uuid::Uuid,
-    /// Opaque per-capture protocol token, reserved before PNG encoding.
+    /// Opaque protocol token for the triggering display.
     pub capture_token: String,
     /// Distinguishes an empty display with no windows from geometry that is
     /// still being enumerated in the background.
@@ -188,7 +195,15 @@ pub struct CaptureSession {
     /// macOS keeps one overlay WebView mounted for the process lifetime.
     pub resident_overlay: bool,
     pub initial_mode: CaptureMode,
+    /// Display that owned the shortcut. Kept as the deterministic fallback for
+    /// session-wide operations that are not initiated by one overlay.
     pub display: CapturedDisplay,
+    /// One frozen display and protocol token per interactive overlay.
+    pub displays: HashMap<String, CapturedDisplay>,
+    pub capture_tokens: HashMap<String, String>,
+    /// Per-overlay window enumeration state so a fast screen can receive its
+    /// hit-test geometry without waiting for another display.
+    pub window_rects_ready_by_owner: HashMap<String, bool>,
     pub source_application: Option<String>,
     /// PID of the application that was frontmost before capture started.
     pub return_pid: Option<u32>,
@@ -207,6 +222,7 @@ pub struct PendingCaptureCompletion {
     pub preview: CompletionPreviewDto,
     pub monitor: Option<Monitor>,
     pub pin_on_top: bool,
+    pub share_to_lanchat: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -518,6 +534,14 @@ pub struct CompletionPreviewDto {
     pub detail: String,
     pub gif_eligible: bool,
     pub copied: bool,
+    pub shared_room_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletionPreviewSnapshot {
+    pub revision: u64,
+    pub preview: CompletionPreviewDto,
 }
 
 impl CompletionPreviewDto {
@@ -531,6 +555,7 @@ impl CompletionPreviewDto {
             detail: detail.into(),
             gif_eligible: false,
             copied: false,
+            shared_room_name: None,
         }
     }
 
@@ -551,6 +576,7 @@ impl CompletionPreviewDto {
             gif_eligible: asset.kind == crate::core::asset::CaptureKind::Video
                 && crate::core::policy::RecordingPolicy::is_gif_eligible(asset.duration),
             copied,
+            shared_room_name: None,
         }
     }
 }
@@ -594,6 +620,7 @@ impl AppState {
             capture_escape_shortcut: Default::default(),
             scroll_capture: Default::default(),
             pending_capture_completion: Default::default(),
+            completion_preview: Default::default(),
             capture_pin_placements: Default::default(),
             recording: Default::default(),
             recording_save_jobs: Default::default(),
@@ -911,11 +938,34 @@ fn show_completion_preview_inner(
             return;
         }
     }
-    let height = if preview.phase == "failed" { if preview.asset_id.is_none() { 144.0 } else { 224.0 } } else { 160.0 };
+    let snapshot = {
+        let state = app.state::<AppState>();
+        let mut latest = state.completion_preview.lock().unwrap();
+        let revision = latest
+            .as_ref()
+            .map(|snapshot| snapshot.revision.saturating_add(1))
+            .unwrap_or(1);
+        let snapshot = CompletionPreviewSnapshot {
+            revision,
+            preview: preview.clone(),
+        };
+        *latest = Some(snapshot.clone());
+        snapshot
+    };
+    let height = if preview.phase == "failed" {
+        if preview.asset_id.is_none() {
+            COMPLETION_STARTUP_FAILURE_TOAST_HEIGHT
+        } else {
+            COMPLETION_FAILURE_TOAST_HEIGHT
+        }
+    } else {
+        COMPLETION_TOAST_HEIGHT
+    };
     let label = "toast";
     let asset_id = preview.asset_id.as_deref().unwrap_or_default();
+    let shared_room_name = preview.shared_room_name.as_deref().unwrap_or_default();
     let initial_url = format!(
-        "index.html?window=toast&mode=completion&id={}&phase={}&assetId={}&kind={}&title={}&detail={}&gifEligible={}&copied={}",
+        "index.html?window=toast&mode=completion&id={}&phase={}&assetId={}&kind={}&title={}&detail={}&gifEligible={}&copied={}&sharedRoomName={}&revision={}",
         urlencode(&preview.id),
         urlencode(&preview.phase),
         urlencode(asset_id),
@@ -924,6 +974,8 @@ fn show_completion_preview_inner(
         urlencode(&preview.detail),
         preview.gif_eligible,
         preview.copied,
+        urlencode(shared_room_name),
+        snapshot.revision,
     );
     let window = match app.get_webview_window(label) {
         Some(window) => window,
@@ -972,7 +1024,7 @@ fn show_completion_preview_inner(
     // before freezing the next frame.
     let _ = window.set_content_protected(false);
     crate::platform::set_window_capture_excluded(app, label, false);
-    let _ = window.emit("completion-preview", preview.clone());
+    let _ = window.emit("completion-preview", snapshot);
     crate::platform::show_window_without_activation(
         app,
         label,
@@ -1273,6 +1325,8 @@ pub fn save_language(app: &AppHandle, language: &str) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::{
         mark_error_seen, toast_position, urlencode, ActiveRecording, CaptureFlow,
         CaptureScheduleGate, CaptureSession, CaptureStartGate, RecordingConfiguration,
@@ -1433,6 +1487,24 @@ mod tests {
                     display_identity: None,
                     backing_scale: 1.0,
                 },
+                displays: HashMap::from([(
+                    "overlay-a".into(),
+                    CapturedDisplay {
+                        png_data: vec![1].into(),
+                        pixel_width: 1,
+                        pixel_height: 1,
+                        screen_frame: Rect::new(0.0, 0.0, 1.0, 1.0),
+                        window_rects: Vec::new(),
+                        display_id: 1,
+                        display_identity: None,
+                        backing_scale: 1.0,
+                    },
+                )]),
+                capture_tokens: HashMap::from([(
+                    "overlay-a".into(),
+                    "0123456789abcdef0123456789abcdef".into(),
+                )]),
+                window_rects_ready_by_owner: HashMap::from([("overlay-a".into(), true)]),
                 source_application: None,
                 return_pid: None,
                 was_kiri_frontmost: true,

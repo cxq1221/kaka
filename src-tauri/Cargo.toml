@@ -8,7 +8,7 @@ rust-version = "1.88"
 
 [lib]
 name = "kaka_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -220,6 +220,13 @@ exclude = ["vendor/wry", "vendor/global-hotkey"]
 wry = { path = "vendor/wry" }
 # Native capture bindings must report macOS conflicts instead of sharing them.
 global-hotkey = { path = "vendor/global-hotkey" }
+
+[profile.dev]
+debug = "line-tables-only"
+incremental = false
+
+[profile.dev.package."*"]
+debug = 0
 
 [profile.release]
 opt-level = 3

@@ -1,13 +1,16 @@
 /** Overlay-local logical coordinates; the measured toolbar includes its border. */
 export function captureToolbarPosition(selection, bounds, size, sizeControlsOpen = false, modeSelector = null, preferredPosition = null) {
   const margin = 8;
-  const gap = 10;
+  const gap = 6;
   const minLeft = bounds.x + margin;
   const minTop = bounds.y + margin;
   const maxLeft = Math.max(minLeft, bounds.x + bounds.width - size.width - margin);
   const maxTop = Math.max(minTop, bounds.y + bounds.height - size.height - margin);
   const clamp = (value, low, high) => Math.min(Math.max(value, low), high);
   const centeredLeft = clamp(selection.x + (selection.width - size.width) / 2, minLeft, maxLeft);
+  const rightAlignedLeft = selection.width >= size.width
+    ? clamp(selection.x + selection.width - size.width - 3, minLeft, maxLeft)
+    : centeredLeft;
   const centeredTop = clamp(selection.y + (selection.height - size.height) / 2, minTop, maxTop);
   const overlaps = (position, rect, clearance = 0) => !!rect &&
     position.left < rect.x + rect.width + clearance && position.left + size.width + clearance > rect.x &&
@@ -38,8 +41,8 @@ export function captureToolbarPosition(selection, bounds, size, sizeControlsOpen
   // Place the whole measured stack outside the selection. Clamping only its
   // top used to leave later settings rows across the selection's upper edge.
   const outside = [
-    { left: centeredLeft, top: selection.y + selection.height + gap },
-    { left: centeredLeft, top: selection.y - size.height - gap - (sizeControlsOpen ? 38 : 0) },
+    { left: rightAlignedLeft, top: selection.y + selection.height + gap },
+    { left: rightAlignedLeft, top: selection.y - size.height - gap - (sizeControlsOpen ? 38 : 0) },
     { left: selection.x + selection.width + (sizeControlsOpen ? 80 : gap), top: centeredTop },
     { left: selection.x - size.width - gap, top: centeredTop },
   ];
@@ -50,8 +53,8 @@ export function captureToolbarPosition(selection, bounds, size, sizeControlsOpen
   // A full-height/full-display selection has no outside room. Keep the stack
   // fully inside it when possible instead of straddling a resize border.
   const inside = [
-    { left: centeredLeft, top: selection.y + selection.height - size.height - gap },
-    { left: centeredLeft, top: selection.y + gap },
+    { left: rightAlignedLeft, top: selection.y + selection.height - size.height - gap },
+    { left: rightAlignedLeft, top: selection.y + gap },
     { left: centeredLeft, top: centeredTop },
   ];
   const contained = position => position.left >= selection.x + gap &&

@@ -86,13 +86,17 @@ pub async fn scan_qr(
                             && s.overlay_labels.contains(&label)
                     })
                     .ok_or("The QR request was canceled.")?;
+                let display = session
+                    .displays
+                    .get(&label)
+                    .ok_or("The capture display is unavailable.")?;
                 crate::ocr_commands::FrozenPngSource {
-                    png: session.display.png_data.clone(),
-                    declared_width: session.display.pixel_width,
-                    declared_height: session.display.pixel_height,
-                    display_width: session.display.screen_frame.width,
-                    display_height: session.display.screen_frame.height,
-                    scale: session.display.backing_scale,
+                    png: display.png_data.clone(),
+                    declared_width: display.pixel_width,
+                    declared_height: display.pixel_height,
+                    display_width: display.screen_frame.width,
+                    display_height: display.screen_frame.height,
+                    scale: display.backing_scale,
                 }
             };
             crate::ocr_commands::crop_frozen_png(source, selection)?.png

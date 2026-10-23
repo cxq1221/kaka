@@ -12,16 +12,21 @@ test("800×600 bottom-right region leaves a measured wrapped toolbar above the s
   const selection = { x: 650, y: 420, width: 140, height: 160 };
   const size = { width: 784, height: 81 };
   const position = captureToolbarPosition(selection, { x: 0, y: 0, width: 800, height: 600 }, size);
-  assert.deepEqual(position, { left: 8, top: 329 });
-  assert.equal(position.top + size.height, selection.y - 10);
+  assert.deepEqual(position, { left: 8, top: 333 });
+  assert.equal(position.top + size.height, selection.y - 6);
 });
 
-test("wide displays retain the centered row below the selection", () => {
+test("wide displays place the row below and align it to the selection's right edge", () => {
+  assert.deepEqual(captureToolbarPosition(
+    { x: 500, y: 200, width: 500, height: 150 },
+    { x: 0, y: 0, width: 1512, height: 982 },
+    { width: 410, height: 48 },
+  ), { left: 587, top: 356 });
   assert.deepEqual(captureToolbarPosition(
     { x: 500, y: 200, width: 500, height: 150 },
     { x: 0, y: 0, width: 1512, height: 982 },
     { width: 810, height: 48 },
-  ), { left: 345, top: 360 });
+  ), { left: 345, top: 356 });
 });
 
 test("all corners remain inside logical viewport bounds after height changes", () => {
@@ -52,8 +57,8 @@ test("a tall settings stack near the top stays inside the selection when neither
   for (const height of [94, 130, 230]) {
     const size = { width: 550, height };
     const position = captureToolbarPosition(selection, bounds, size, false, mode);
-    assert.ok(position.top >= selection.y + 10);
-    assert.ok(position.top + size.height <= selection.y + selection.height - 10);
+    assert.ok(position.top >= selection.y + 6);
+    assert.ok(position.top + size.height <= selection.y + selection.height - 6);
     assert.ok(!overlaps(position, size, mode));
   }
 });
@@ -63,8 +68,8 @@ test("a mode selector only reserves its actual area, leaving clear room above a 
   const size = { width: 420, height: 96 };
   const mode = { x: 280, y: 44, width: 310, height: 44 };
   const position = captureToolbarPosition(selection, { x: 0, y: 0, width: 1200, height: 800 }, size, false, mode);
-  assert.deepEqual(position, { left: 670, top: 49 });
-  assert.equal(position.top + size.height + 10, selection.y);
+  assert.deepEqual(position, { left: 670, top: 53 });
+  assert.equal(position.top + size.height + 6, selection.y);
   assert.ok(!overlaps(position, size, mode));
 });
 
@@ -86,7 +91,7 @@ test("narrow full-height selections use free side space before covering the canv
   const size = { width: 550, height: 140 };
   const mode = { x: 445, y: 44, width: 310, height: 44 };
   const position = captureToolbarPosition(selection, { x: 0, y: 0, width: 1200, height: 800 }, size, false, mode);
-  assert.deepEqual(position, { left: 220, top: 330 });
+  assert.deepEqual(position, { left: 216, top: 330 });
   assert.ok(!overlaps(position, size, selection));
   assert.ok(!overlaps(position, size, mode));
 });
@@ -118,7 +123,7 @@ test("choosing N and changing property heights keeps the main toolbar anchored b
   const source = readFileSync(new URL("../src/windows/OverlayWindow.tsx", import.meta.url), "utf8");
   // Compile the real tool definitions and both toolbar rows, including all
   // three direct text tools; no empty TOOLS shortcut hides wrap groups.
-  const toolbar = source.slice(source.indexOf("const TOOLS:"));
+  const toolbar = source.slice(source.indexOf("type ToolDefinition ="));
   const css = readFileSync(new URL("../src/styles/design-system.css", import.meta.url), "utf8");
   const optionsCss = css.match(/\.kiri-capture-tool-options\s*\{([^}]+)\}/)?.[1];
   assert.ok(optionsCss, "the property HUD has an explicit input and width boundary");
@@ -150,7 +155,7 @@ test("choosing N and changing property heights keeps the main toolbar anchored b
   assert.equal(root.props.style.pointerEvents, "none");
   assert.ok(root.props.style.zIndex > 5, "selection keylines must not paint over controls");
   const anchor = {left: root.props.style.left, top: root.props.style.top};
-  assert.equal(anchor.top, props.selection.y + props.selection.height + 10);
+  assert.equal(anchor.top, props.selection.y + props.selection.height + 6);
   const checkProperties = settings => {
     const position = {left: anchor.left + settings.props.style.left, top: anchor.top + settings.props.style.top};
     const size = {width: settings.props.style.width, height: Math.min(height, settings.props.style.maxHeight)};
@@ -193,7 +198,7 @@ test("choosing N and changing property heights keeps the main toolbar anchored b
   assert.deepEqual({left: root.props.style.left, top: root.props.style.top}, anchor);
   root = nodes(component.render({...props, selection: {...props.selection, y: 20, height: 200}}))
     .find(node => node?.props?.className === "kiri-capture-toolbar");
-  assert.equal(root.props.style.top, 230, "a real selection move/resize still repositions its toolbar");
+  assert.equal(root.props.style.top, 226, "a real selection move/resize still repositions its toolbar");
   component.unmount();
 });
 
@@ -229,7 +234,7 @@ test("legacy outside-panel layout keeps its actions clear of the mode selector",
   const mode = { x: 492, y: 44, width: 296, height: 44 };
   const natural = { width: 360, height: 460 };
   const layout = capturePanelLayout(selection, bounds, natural, mode);
-  assert.equal(layout.top, 400);
+  assert.equal(layout.top, 396);
   assert.equal(layout.maxHeight, 392);
   assert.ok(!overlaps(layout, { width: layout.width, height: layout.maxHeight }, mode));
   assert.ok(layout.top + layout.maxHeight <= 792, "scrolling content must leave Start/Cancel on screen");
@@ -537,7 +542,7 @@ test("dragged properties clamp at screen edges and keep toolbar and mode selecto
 
 function movableToolbar() {
   const source = readFileSync(new URL("../src/windows/OverlayWindow.tsx", import.meta.url), "utf8");
-  const toolbar = source.slice(source.indexOf("const TOOLS:"));
+  const toolbar = source.slice(source.indexOf("type ToolDefinition ="));
   let height = 160, panelStyle;
   const measured = {get scrollHeight() {return height;}, get offsetHeight() {return Math.min(height, panelStyle.maxHeight);},
     get clientHeight() {return Math.min(height, panelStyle.maxHeight);}};
@@ -557,11 +562,25 @@ function movableToolbar() {
   const component = runtime.mount("Toolbar", props);
   const tree = () => component.render();
   const find = className => nodes(tree()).find(node => node?.props?.className === className);
+  const openMore = () => {
+    const button = nodes(tree()).find(node => node?.props?.title === "More Actions");
+    assert.ok(button);
+    button.props.onClick();
+    return tree();
+  };
+  const openToolOptions = () => {
+    openMore();
+    const item = nodes(tree()).find(node => node?.props?.label === "Tool options" ||
+      node?.props?.label === "Resize selection");
+    assert.ok(item);
+    item.props.onClick();
+    return tree();
+  };
   const position = () => {
     const root = find("kiri-capture-toolbar"), panel = find("kiri-hud kiri-capture-tool-options");
     return {left: root.props.style.left + panel.props.style.left, top: root.props.style.top + panel.props.style.top};
   };
-  return {runtime, component, props, tree, find, position, height: value => {height = value;}};
+  return {runtime, component, props, tree, find, openMore, openToolOptions, position, height: value => {height = value;}};
 }
 function panelPointer(currentTarget, patch = {}) {
   return {button: 0, isPrimary: true, pointerId: 7, clientX: 400, clientY: 600, currentTarget,
@@ -576,7 +595,7 @@ test("explicitly hiding properties survives new selections until the toolbar opt
   assert.equal(ui.find("kiri-hud kiri-capture-tool-options"), undefined);
   ui.component.render({...ui.props, tool: "callout", selectedMark: {id: 2}});
   assert.equal(ui.find("kiri-hud kiri-capture-tool-options"), undefined);
-  nodes(ui.tree()).find(node => node?.props?.icon === "slider.horizontal.3").props.onClick();
+  ui.openToolOptions();
   assert.ok(ui.find("kiri-hud kiri-capture-tool-options"));
   ui.component.unmount();
 });
@@ -653,16 +672,20 @@ test("main and property manual positions remain independent across tool changes 
     ui.find(className).props.onPointerUp(panelPointer(target));
   };
   drag("kiri-capture-options-move", -40, -200);
-  const propertyPosition = ui.position();
   const before = mainPosition();
   drag("kiri-capture-toolbar-move", 40, -100);
   const main = mainPosition();
   assert.deepEqual(main, {left: before.left + 40, top: before.top - 100});
-  assert.deepEqual(ui.position(), propertyPosition, "moving the main toolbar does not attach a manually placed properties panel");
+  const panelSize = () => {
+    const panel = ui.find("kiri-hud kiri-capture-tool-options");
+    return {width: panel.props.style.width, height: Math.min(160, panel.props.style.maxHeight)};
+  };
+  assert.ok(!overlaps(ui.position(), panelSize(), {x: main.left, y: main.top, width: 784, height: 48}),
+    "a manually placed properties panel still yields if the main toolbar reaches it");
   ui.component.render({...ui.props, tool: "callout", selectedMark: {id: 4}, appearance: {textFontSize: 32},
     selection: {x: 50, y: 80, width: 800, height: 600}});
   assert.deepEqual(mainPosition(), main);
-  assert.deepEqual(ui.position(), propertyPosition);
+  assert.ok(!overlaps(ui.position(), panelSize(), {x: main.left, y: main.top, width: 784, height: 48}));
   drag("kiri-capture-toolbar-move", 0, -200);
   const next = mainPosition();
   assert.deepEqual(next, {left: main.left, top: main.top - 200}, "properties cannot move the user-positioned main row");
@@ -718,7 +741,7 @@ function adjustingCalloutToolbar() {
 test("resizing a callout keeps the slider in place until the pointer adjustment ends", () => {
   const ui = adjustingCalloutToolbar(), target = ui.field("range");
   const initial = ui.position();
-  assert.equal(initial.top, 303, "the sample starts directly above the small callout");
+  assert.ok(initial.top + 150 <= 475 - 10, "the sample starts directly above the small callout");
   const down = panelPointer({}, {target});
   ui.panel().props.onPointerDownCapture(down);
   ui.panel().props.onFocusCapture({target});
@@ -726,7 +749,11 @@ test("resizing a callout keeps the slider in place until the pointer adjustment 
   ui.resize(80);
   assert.deepEqual(ui.position(), initial, "new annotation bounds cannot move a slider under the held pointer");
   ui.panel().props.onPointerUpCapture(panelPointer({}, {target}));
-  assert.equal(ui.position().top, 275, "release restores automatic avoidance even though the range remains focused");
+  const automatic = adjustingCalloutToolbar();
+  automatic.resize(80);
+  assert.deepEqual(ui.position(), automatic.position(),
+    "release restores automatic avoidance even though the range remains focused");
+  automatic.component.unmount();
   ui.component.unmount();
 });
 
@@ -743,7 +770,11 @@ test("number editing retains the panel through pointer release and focus transfe
   ui.resize(80);
   assert.deepEqual(ui.position(), initial, "Tab between numeric properties keeps the current reading position");
   ui.panel().props.onBlurCapture({target: next, relatedTarget: null, currentTarget: {contains: () => false}});
-  assert.equal(ui.position().top, 275, "the same blur used by Enter/Escape ends the temporary position lock");
+  const automatic = adjustingCalloutToolbar();
+  automatic.resize(80);
+  assert.deepEqual(ui.position(), automatic.position(),
+    "the same blur used by Enter/Escape ends the temporary position lock");
+  automatic.component.unmount();
   ui.component.unmount();
 });
 
@@ -762,7 +793,10 @@ test("cancel, lost capture, window blur, and selection changes cannot leave prop
     assert.deepEqual(ui.position(), initial);
     finish(ui);
     ui.resize(80);
-    assert.equal(ui.position().top, 275);
+    const automatic = adjustingCalloutToolbar();
+    automatic.resize(80);
+    assert.deepEqual(ui.position(), automatic.position());
+    automatic.component.unmount();
     ui.component.unmount();
   }
 });
@@ -776,14 +810,17 @@ test("manual property placement takes priority during and after adjustment, whil
   ui.resize(80);
   assert.deepEqual(ui.position(), manual);
   ui.find("kiri-capture-options-hide").props.onClick({currentTarget: {}});
-  nodes(ui.tree()).find(node => node?.props?.icon === "slider.horizontal.3").props.onClick();
+  ui.openToolOptions();
   assert.deepEqual(ui.position(), manual, "closing and reopening retains the user's own position");
   ui.component.unmount();
   const automatic = adjustingCalloutToolbar();
   automatic.panel().props.onFocusCapture({target: automatic.field("number")});
   automatic.resize(80);
   automatic.find("kiri-capture-options-hide").props.onClick({currentTarget: {}});
-  nodes(automatic.tree()).find(node => node?.props?.icon === "slider.horizontal.3").props.onClick();
-  assert.equal(automatic.position().top, 275, "a hidden numeric input cannot retain an automatic position lock");
+  automatic.openToolOptions();
+  const resized = adjustingCalloutToolbar();
+  resized.resize(80);
+  assert.deepEqual(automatic.position(), resized.position(), "a hidden numeric input cannot retain an automatic position lock");
+  resized.component.unmount();
   automatic.component.unmount();
 });

@@ -23,13 +23,13 @@ import { t } from "../i18n";
 import RecordingMicrophoneSelect from "./RecordingMicrophoneSelect";
 import { Mic, MousePointer2, MousePointerClick, Volume2 } from "lucide-react";
 import { isTextComposition } from "../annotation/text-composition.js";
-import type { Point, Rect } from "../annotation/geom";
+import type { Point, Rect, SelectionHandle } from "../annotation/geom";
 import {
   ALL_HANDLES,
   clampPoint,
   contains,
   handlePoint,
-  hitTestHandle,
+  hitTestResizeHandle,
   intersection,
   isValidSelection,
   maxX,
@@ -95,8 +95,12 @@ type Phase =
   | "record-options";
 
 type Mode = "screenshot" | "record" | "ocr";
+type CompletionAction = "done" | "pin" | "share";
 
 const ACCENT = "#050505";
+const SELECTION_ACCENT = "#3487ec";
+const RESIZE_HANDLE_RADIUS = 10;
+const RESIZE_EDGE_BAND = 8;
 const MODE_SELECTOR_DRAG_THRESHOLD = 4;
 const FLOATING_CONTROL_MARGIN = 8;
 const DEFAULT_HINT_TOP = 102;
@@ -119,6 +123,13 @@ function clampFloatingControl(position: Point, size: { width: number; height: nu
     x: Math.min(Math.max(position.x, minLeft), maxLeft),
     y: Math.min(Math.max(position.y, minTop), maxTop),
   };
+}
+
+function resizeCursor(handle: SelectionHandle): React.CSSProperties["cursor"] {
+  if (handle === "topLeft" || handle === "bottomRight") return "nwse-resize";
+  if (handle === "topRight" || handle === "bottomLeft") return "nesw-resize";
+  if (handle === "left" || handle === "right") return "ew-resize";
+  return "ns-resize";
 }
 
 // --- window hover candidate (WindowSelectionGeometry.candidate port) ---
@@ -156,7 +167,9 @@ export function OverlayWindow() {
   const [sizeControlsOpen, setSizeControlsOpen] = useState(false);
   const [hoverWindow, setHoverWindow] = useState<Rect | null>(null);
   const [drag, setDrag] = useState<{ start: Point; current: Point; moved: boolean } | null>(null);
-  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [resizeHandle, setResizeHandle] = useState<SelectionHandle | null>(null);
+  const [hoveredResizeHandle, setHoveredResizeHandle] = useState<SelectionHandle | null>(null);
+  const [hoveringSelection, setHoveringSelection] = useState(false);
   const [moveDrag, setMoveDrag] = useState<{ start: Point; original: Rect } | null>(null);
   const [tool, setTool] = useState<Tool>("select");
   const [selectedMark, setSelectedMark] = useState<AnnotationMark | null>(null);
@@ -269,6 +282,8 @@ export function OverlayWindow() {
     setHoverWindow(null);
     setDrag(null);
     setResizeHandle(null);
+    setHoveredResizeHandle(null);
+    setHoveringSelection(false);
     setMoveDrag(null);
     setTool("select");
     setSelectedMark(null);
@@ -592,7 +607,7 @@ export function OverlayWindow() {
   }, [cancel, closeQr, completionLock]);
 
   const complete = useCallback(
-    async (pinOnTop = false) => {
+    async (action: CompletionAction = "done") => {
       if (!imageReady) return;
       if (!completionLock.acquire()) return;
       const modeSelectorGesture = modeSelectorDragRef.current;
@@ -619,7 +634,14 @@ export function OverlayWindow() {
           reportFrontend("complete: exportResult returned no data");
           return;
         }
-        await api.confirmCapture(result.png, { selection, document: result.document }, pinOnTop);
+        await api.confirmCapture(
+          result.png,
+          { selection, document: result.document },
+          {
+            pinOnTop: action === "pin",
+            shareToLanChat: action === "share",
+          },
+        );
         // The backend confirmation is synchronous. Release this owner only
         // after its IPC response has arrived. The macOS overlay is resident,
         // so hide it and let the backend publish completion feedback; Windows
@@ -787,6 +809,7 @@ export function OverlayWindow() {
       if (isTextComposition(e)) return;
       if (document.querySelector('.kiri-record-options__microphone[aria-expanded="true"]')) return;
       if (document.querySelector('.kiri-capture-toolbar button[data-dragging="true"]')) return;
+      if (document.querySelector('.kiri-capture-more-menu')) return;
       if (e.target instanceof Element && e.target.closest(".kiri-capture-dimension-input")) return;
       if (e.target instanceof Element && e.target.closest(".kiri-callout-description textarea")) return;
       if (e.target instanceof Element && e.target.closest(
@@ -963,13 +986,21 @@ export function OverlayWindow() {
         selectionRef.current
       ) {
         // Handle or move the existing selection.
-        const handle = hitTestHandle(p, selectionRef.current, 10);
+        const handle = hitTestResizeHandle(
+          p,
+          selectionRef.current,
+          RESIZE_HANDLE_RADIUS,
+          RESIZE_EDGE_BAND,
+        );
         if (handle) {
           setResizeHandle(handle);
+          setHoveredResizeHandle(handle);
+          setHoveringSelection(false);
           setDrag({ start: p, current: p, moved: false });
           return;
         }
         if (contains(selectionRef.current, p)) {
+          setHoveringSelection(true);
           setMoveDrag({ start: p, original: { ...selectionRef.current } });
           return;
         }
@@ -995,6 +1026,29 @@ export function OverlayWindow() {
       // Hover outline while not dragging. OCR mode never hovers windows
       // (spec §2.1: hoveredWindowSelection is always nil for .ocr).
       if (!drag && !resizeHandle && !moveDrag) {
+        const currentSelection = selectionRef.current;
+        const canAffordResize =
+          (phaseRef.current === "selecting" || phaseRef.current === "record-options") &&
+          !!currentSelection && isValidSelection(currentSelection, 3);
+        const nextResizeHandle = canAffordResize
+          ? hitTestResizeHandle(
+              p,
+              currentSelection,
+              RESIZE_HANDLE_RADIUS,
+              RESIZE_EDGE_BAND,
+            )
+          : null;
+        const nextHoveringSelection = canAffordResize && !!currentSelection &&
+          contains(currentSelection, p) && !nextResizeHandle;
+        setHoveredResizeHandle(current =>
+          current === nextResizeHandle ? current : nextResizeHandle);
+        setHoveringSelection(current =>
+          current === nextHoveringSelection ? current : nextHoveringSelection);
+        if (nextResizeHandle) {
+          setHoverWindow(null);
+          hoverWindowRef.current = null;
+          return;
+        }
         const candidate =
           modeRef.current !== "ocr" && context
             ? windowCandidate(p, context.windowRects, bounds)
@@ -1006,6 +1060,8 @@ export function OverlayWindow() {
         return;
       }
       setHoverWindow(null);
+      if (hoveredResizeHandle) setHoveredResizeHandle(null);
+      if (hoveringSelection) setHoveringSelection(false);
       if (resizeHandle && drag && selectionRef.current) {
         const resizedRect = resized(selectionRef.current, resizeHandle as never, p, bounds, 16);
         setSelection(resizedRect);
@@ -1033,7 +1089,7 @@ export function OverlayWindow() {
         }
       }
     },
-    [toPoint, bounds, context, drag, resizeHandle, moveDrag],
+    [toPoint, bounds, context, drag, hoveredResizeHandle, hoveringSelection, resizeHandle, moveDrag],
   );
 
   const onPointerUp = useCallback(
@@ -1046,9 +1102,42 @@ export function OverlayWindow() {
       selectionPointerStartRef.current = null;
       const p = clampPoint(toPoint(e), bounds);
       if (resizeHandle || moveDrag) {
+        let committedSelection = selectionRef.current;
+        if (resizeHandle && committedSelection) {
+          committedSelection = resized(
+            committedSelection,
+            resizeHandle,
+            p,
+            bounds,
+            16,
+          );
+          selectionRef.current = committedSelection;
+          setSelection(committedSelection);
+        } else if (moveDrag && committedSelection) {
+          const by = { x: p.x - moveDrag.start.x, y: p.y - moveDrag.start.y };
+          committedSelection = {
+            x: Math.min(Math.max(moveDrag.original.x + by.x, minX(bounds)), maxX(bounds) - moveDrag.original.width),
+            y: Math.min(Math.max(moveDrag.original.y + by.y, minY(bounds)), maxY(bounds) - moveDrag.original.height),
+            width: moveDrag.original.width,
+            height: moveDrag.original.height,
+          };
+          selectionRef.current = committedSelection;
+          setSelection(committedSelection);
+        }
         setResizeHandle(null);
         setMoveDrag(null);
         setDrag(null);
+        const currentSelection = committedSelection;
+        const nextResizeHandle = currentSelection
+          ? hitTestResizeHandle(
+              p,
+              currentSelection,
+              RESIZE_HANDLE_RADIUS,
+              RESIZE_EDGE_BAND,
+            )
+          : null;
+        setHoveredResizeHandle(nextResizeHandle);
+        setHoveringSelection(!!currentSelection && contains(currentSelection, p) && !nextResizeHandle);
         return;
       }
       if (drag) {
@@ -1144,6 +1233,14 @@ export function OverlayWindow() {
   const canResizeSelection = (mode === "screenshot" && phase === "selecting") ||
     (mode === "record" && (phase === "selecting" || phase === "record-options"));
   const showSizeControls = sizeControlsOpen && canResizeSelection;
+  const activeResizeHandle = resizeHandle ?? hoveredResizeHandle;
+  const captureCursor: React.CSSProperties["cursor"] = activeResizeHandle
+    ? resizeCursor(activeResizeHandle)
+    : moveDrag
+      ? "grabbing"
+      : hoveringSelection && canResizeSelection
+        ? "move"
+        : "crosshair";
 
   return (
     <div
@@ -1168,13 +1265,17 @@ export function OverlayWindow() {
           completing
             ? "progress"
             : phase === "selecting" || phase === "record-options"
-            ? "crosshair"
+            ? captureCursor
             : "default",
       }}
       onPointerDown={completing || phase === "annotating" ? undefined : onPointerDown}
       onPointerDownCapture={colorPicker.clear}
       onPointerMoveCapture={colorPicker.onPointerMove}
-      onPointerLeave={colorPicker.clear}
+      onPointerLeave={() => {
+        colorPicker.clear();
+        setHoveredResizeHandle(null);
+        setHoveringSelection(false);
+      }}
       onFocusCapture={colorPicker.clear}
       onPointerMove={completing || phase === "annotating" ? undefined : onPointerMove}
       onPointerUp={completing || phase === "annotating" ? undefined : onPointerUp}
@@ -1184,7 +1285,8 @@ export function OverlayWindow() {
         const eligible = event.target === event.currentTarget &&
           modeRef.current === "screenshot" && phaseRef.current === "selecting" &&
           !selectionClickMovedRef.current && !!region && isValidSelection(region, 3) &&
-          contains(region, point) && !hitTestHandle(point, region, 10);
+          contains(region, point) &&
+          !hitTestResizeHandle(point, region, RESIZE_HANDLE_RADIUS, RESIZE_EDGE_BAND);
         doubleClickCanFinishRef.current = event.detail === 1
           ? eligible : doubleClickCanFinishRef.current && eligible;
       }}
@@ -1264,7 +1366,8 @@ export function OverlayWindow() {
         />
       )}
 
-      {/* Selection outline: white outer keyline + black inner keyline. */}
+      {/* Selection outline: one crisp blue edge keeps the adjustable region
+          distinct from the monochrome window-hover outline. */}
       {displayRect && phase !== "annotating" && phase !== "qr-result" && (
         <>
           <div
@@ -1274,24 +1377,12 @@ export function OverlayWindow() {
               top: displayRect.y,
               width: displayRect.width,
               height: displayRect.height,
-              border: "3px solid rgba(255,255,255,0.92)",
+              border: `2px solid ${SELECTION_ACCENT}`,
               boxSizing: "border-box",
               pointerEvents: "none",
             }}
           />
-          <div
-            style={{
-              position: "absolute",
-              left: displayRect.x,
-              top: displayRect.y,
-              width: displayRect.width,
-              height: displayRect.height,
-              border: `1.5px solid ${ACCENT}`,
-              boxSizing: "border-box",
-              pointerEvents: "none",
-            }}
-          />
-          <SelectionHandles rect={displayRect} />
+          <SelectionHandles rect={displayRect} activeHandle={activeResizeHandle} />
           {!showSizeControls && <SizeBadge
             rect={displayRect}
             bounds={bounds}
@@ -1311,36 +1402,22 @@ export function OverlayWindow() {
         }}
       />}
 
-      {/* Selection border while annotating: heavier white + black keylines. */}
+      {/* Selection border while annotating keeps the same blue selection
+          language above the annotation canvas. */}
       {displayRect && phase === "annotating" && (
-        <>
-          <div
-            style={{
-              position: "absolute",
-              left: displayRect.x,
-              top: displayRect.y,
-              width: displayRect.width,
-              height: displayRect.height,
-              border: "4px solid rgba(255,255,255,0.92)",
-              boxSizing: "border-box",
-              pointerEvents: "none",
-              zIndex: 5,
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: displayRect.x,
-              top: displayRect.y,
-              width: displayRect.width,
-              height: displayRect.height,
-              border: `2px solid ${ACCENT}`,
-              boxSizing: "border-box",
-              pointerEvents: "none",
-              zIndex: 5,
-            }}
-          />
-        </>
+        <div
+          style={{
+            position: "absolute",
+            left: displayRect.x,
+            top: displayRect.y,
+            width: displayRect.width,
+            height: displayRect.height,
+            border: `2px solid ${SELECTION_ACCENT}`,
+            boxSizing: "border-box",
+            pointerEvents: "none",
+            zIndex: 5,
+          }}
+        />
       )}
 
       {/* Annotation canvas — mounted (hidden) as soon as a region is chosen
@@ -1582,7 +1659,8 @@ export function OverlayWindow() {
           onUndo={() => canvasRef.current?.undo()}
           onRedo={() => canvasRef.current?.redo()}
           onDone={() => void complete()}
-          onPin={() => void complete(true)}
+          onShare={() => void complete("share")}
+          onPin={() => void complete("pin")}
           onScrollCapture={() => void startScrollCapture()}
           scrollCaptureUnavailable={!platformCaps.scrollingCapture
             ? "Scrolling capture is unavailable on this desktop."
@@ -1658,41 +1736,35 @@ function HintLabel(props: { text: string; top: number }) {
   );
 }
 
-export function SelectionHandles(props: { rect: Rect }) {
-  const { rect } = props;
+export function SelectionHandles(props: { rect: Rect; activeHandle?: SelectionHandle | null }) {
+  const { rect, activeHandle } = props;
   return (
     <>
       {ALL_HANDLES.map((handle) => {
         const p = handlePoint(handle, rect);
+        const active = handle === activeHandle;
+        const size = active ? 10 : 8;
         return (
-          // White outer circle with a black core remains visible over both
-          // light and dark capture content.
+          // A compact blue ring matches the selection edge and becomes solid
+          // while the edge or corner owns the pointer.
           <div
             key={handle}
             style={{
               position: "absolute",
-              left: p.x - 5,
-              top: p.y - 5,
-              width: 10,
-              height: 10,
+              left: p.x - size / 2,
+              top: p.y - size / 2,
+              width: size,
+              height: size,
               borderRadius: "50%",
-              background: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 0 2px rgba(0,0,0,0.3)",
+              background: active ? SELECTION_ACCENT : "#161616",
+              border: `1.5px solid ${SELECTION_ACCENT}`,
+              boxShadow: active
+                ? `0 0 0 3px ${SELECTION_ACCENT}33`
+                : "0 0 0 1px rgba(0,0,0,0.2)",
+              boxSizing: "border-box",
               pointerEvents: "none",
             }}
-          >
-            <div
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: ACCENT,
-              }}
-            />
-          </div>
+          />
         );
       })}
     </>
@@ -1714,7 +1786,7 @@ function SizeBadge(props: { rect: Rect; bounds: Rect; pixelScale: number }) {
   // [6, bounds.maxX - badgeWidth - 6]; if it would clip the top edge,
   // it moves inside the selection's top instead.
   const width = Math.max(48, label.length * 7 + 16);
-  const height = 22;
+  const height = 24;
   const rawX = rect.x;
   const left = Math.min(Math.max(6, rawX), Math.max(6, bounds.width - width - 6));
   const outside = rect.y - height - 6;
@@ -1727,14 +1799,14 @@ function SizeBadge(props: { rect: Rect; bounds: Rect; pixelScale: number }) {
         top,
         width,
         height,
-        background: "rgba(0,0,0,0.76)",
-        border: "1px solid rgba(255,255,255,0.16)",
-        borderRadius: height / 2,
+        background: "rgba(12,12,12,0.92)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 5,
         color: "#fff",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        font: "500 11px ui-monospace, SFMono-Regular, Menlo, monospace",
+        font: "500 11.5px ui-monospace, SFMono-Regular, Menlo, monospace",
         pointerEvents: "none",
         boxSizing: "border-box",
       }}
@@ -2038,6 +2110,7 @@ interface ToolbarProps {
   onUndo(): void;
   onRedo(): void;
   onDone(): void;
+  onShare(): void;
   onPin(): void;
   onOcr(): void;
   onQr(): void;
@@ -2049,16 +2122,21 @@ interface ToolbarProps {
   onTextFontEnd?(): void;
 }
 
-const TOOLS: { tool: Tool; icon: IconName; title: string; shortcut: string }[] = [
+type ToolDefinition = { tool: Tool; icon: IconName; title: string; shortcut: string };
+
+const PRIMARY_TOOLS: ToolDefinition[] = [
   { tool: "select", icon: "cursorarrow", title: "Select (V)", shortcut: "V" },
-  { tool: "pen", icon: "pencil.tip", title: "Pen (P)", shortcut: "P" },
   { tool: "rectangle", icon: "rectangle.dashed", title: "Rectangle (R)", shortcut: "R" },
-  { tool: "line", icon: "line.diagonal", title: "Line (L)", shortcut: "L" },
   { tool: "arrow", icon: "arrow.up.right", title: "Arrow (A)", shortcut: "A" },
+  { tool: "pen", icon: "pencil.tip", title: "Pen (P)", shortcut: "P" },
+  { tool: "mosaic", icon: "square.grid.3x3.fill", title: "Mosaic (M)", shortcut: "M" },
   { tool: "text", icon: "textformat", title: "Text (T)", shortcut: "T" },
   { tool: "callout", icon: "number.circle", title: "Numbered callout (N)", shortcut: "N" },
+];
+
+const MORE_TOOLS: ToolDefinition[] = [
+  { tool: "line", icon: "line.diagonal", title: "Line (L)", shortcut: "L" },
   { tool: "label", icon: "tag", title: "Label bubble (B)", shortcut: "B" },
-  { tool: "mosaic", icon: "square.grid.3x3.fill", title: "Mosaic (M)", shortcut: "M" },
   { tool: "watermark", icon: "watermark", title: "Watermark (W)", shortcut: "W" },
 ];
 
@@ -2071,7 +2149,7 @@ const toolbarRowStyle: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   gap: 2,
-  padding: "6px",
+  padding: "4px 6px",
   pointerEvents: "auto",
 };
 
@@ -2137,22 +2215,20 @@ function useToolbarDrag(position: Point, enabled: boolean, onMove: (point: Point
 
 export function Toolbar(props: ToolbarProps) {
   const {selection, bounds, tool, setTool, canUndo, canRedo, canSetSize, sizeControlsOpen, onToggleSize,
-    disabled, onUndo, onRedo, onDone, onPin, onOcr, onQr, onCancel} = props;
+    disabled, onUndo, onRedo, onDone, onShare, onPin, onOcr, onQr, onCancel} = props;
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const detailsHidden = useRef(false);
   useEffect(() => {
     if (!detailsHidden.current) setDetailsOpen(tool !== "select" || props.selectedMark != null || props.selectedCalloutId !== undefined || props.selectedLabelId !== undefined);
   }, [tool, props.selectedMark?.id, props.selectedCalloutId, props.selectedLabelId]);
-  const toggleDetails = () => setDetailsOpen(open => {
-    detailsHidden.current = open;
-    return !open;
-  });
   const [optionsPosition, setOptionsPosition] = useState<Point | null>(null);
   const [optionsAdjustmentPosition, setOptionsAdjustmentPosition] = useState<Point | null>(null);
   const optionsAdjustment = useRef<{pointerId: number | null; numberInput: HTMLElement | null}>({pointerId: null, numberInput: null});
   const [toolbarPosition, setToolbarPosition] = useState<Point | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [barSize, setBarSize] = useState({ width: 420, height: 48 });
   const [optionsHeight, setOptionsHeight] = useState(96);
@@ -2192,6 +2268,8 @@ export function Toolbar(props: ToolbarProps) {
   const optionsLayout = captureToolOptionsLayout({x: left, y: top, ...barSize}, bounds,
     {width: Math.min(620, barSize.width), height: optionsHeight}, props.modeSelectorBounds, props.avoidBounds,
     optionsPosition ?? optionsAdjustmentPosition);
+  const moreLayout = captureToolOptionsLayout({x: left, y: top, ...barSize}, bounds,
+    {width: 216, height: 278}, props.modeSelectorBounds, props.avoidBounds);
   const optionsLayoutRef = useRef(optionsLayout);
   optionsLayoutRef.current = optionsLayout;
   const holdOptionsPosition = () => setOptionsAdjustmentPosition(previous => previous ?? {
@@ -2231,6 +2309,30 @@ export function Toolbar(props: ToolbarProps) {
   }, []);
   const toolbarDrag = useToolbarDrag({x: left, y: top}, !disabled, setToolbarPosition);
   const optionsDrag = useToolbarDrag({x: optionsLayout.left, y: optionsLayout.top}, showOptions && !disabled, setOptionsPosition);
+  useEffect(() => {
+    if (!disabled) return;
+    setMoreOpen(false);
+  }, [disabled]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && barRef.current?.contains(target)) return;
+      setMoreOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || isTextComposition(event)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setMoreOpen(false);
+    };
+    window.addEventListener("pointerdown", closeOutside, true);
+    window.addEventListener("keydown", closeOnEscape, true);
+    return () => {
+      window.removeEventListener("pointerdown", closeOutside, true);
+      window.removeEventListener("keydown", closeOnEscape, true);
+    };
+  }, [moreOpen]);
   const dragGlyph = <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
     {[3, 7, 11].flatMap(y => [4, 10].map(x => <circle key={`${x}-${y}`} cx={x} cy={y} r="1"/>))}
   </svg>;
@@ -2249,8 +2351,37 @@ export function Toolbar(props: ToolbarProps) {
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3 9 4-4 4 4"/></svg>
     </button>
   </>;
-  const button = ({tool: value, icon, title, shortcut}: typeof TOOLS[number]) =>
-    <ToolButton key={value} icon={icon} title={t(title)} shortcut={shortcut} active={tool === value} disabled={disabled} onClick={() => setTool(value)}/>;
+  const choosePrimaryTool = (value: Tool) => {
+    setMoreOpen(false);
+    setTool(value);
+  };
+  const chooseMoreTool = (value: Tool) => {
+    setMoreOpen(false);
+    detailsHidden.current = false;
+    setTool(value);
+  };
+  const toggleMore = () => {
+    if (!moreOpen) {
+      detailsHidden.current = true;
+      setDetailsOpen(false);
+    }
+    setMoreOpen(!moreOpen);
+  };
+  const openToolOptions = () => {
+    setMoreOpen(false);
+    if (canSetSize) {
+      onToggleSize();
+      return;
+    }
+    detailsHidden.current = false;
+    setDetailsOpen(true);
+  };
+  const button = ({tool: value, icon, title, shortcut}: ToolDefinition) =>
+    <ToolButton key={value} icon={icon} title={t(title)} shortcut={shortcut}
+      active={tool === value} disabled={disabled} onClick={() => choosePrimaryTool(value)}/>;
+  const moreButton = ({tool: value, icon, title}: ToolDefinition) =>
+    <MoreToolbarItem key={value} icon={icon} label={t(title)} active={tool === value}
+      disabled={disabled} onClick={() => chooseMoreTool(value)}/>;
 
   return (
     <>
@@ -2282,26 +2413,48 @@ export function Toolbar(props: ToolbarProps) {
             <button type="button" className="kiri-capture-toolbar-move" disabled={disabled}
               aria-label={t("Move annotation toolbar")} title={t("Drag to move. Use arrow keys for fine adjustments.")}
               {...toolbarDrag}>{dragGlyph}</button>
-            <ToolButton icon="xmark" title={t("Cancel capture · Esc")} shortcut="Escape" onClick={onCancel}/>
           </div>
-          <div className="kiri-annotation-tool-group" role="group" aria-label={t("Annotations")}>{TOOLS.map(button)}</div>
+          <div className="kiri-annotation-tool-group" role="group" aria-label={t("Annotations")}>{PRIMARY_TOOLS.map(button)}</div>
+          <div className="kiri-annotation-tool-group">
+            <ToolButton icon="qrcode" title={t("Recognize QR Codes")} disabled={disabled} onClick={onQr}/>
+          </div>
           <div className="kiri-annotation-tool-group">
             <ToolButton icon="arrow.uturn.backward" title={t("Undo")} shortcut="Mod+Z" disabled={!canUndo} onClick={onUndo}/>
-            <ToolButton icon="arrow.uturn.forward" title={t("Redo")} shortcut="Mod+Shift+Z" disabled={!canRedo} onClick={onRedo}/>
+            <ToolButton icon="ellipsis.circle" title={t("More Actions")} active={moreOpen} expanded={moreOpen}
+              disabled={disabled} onClick={toggleMore}/>
           </div>
-          <div className="kiri-annotation-tool-group">
-            <ToolButton icon="text.viewfinder" title={t("Recognize Text")} disabled={disabled} onClick={onOcr}/>
-            <ToolButton icon="qrcode" title={t("Recognize QR Codes")} disabled={disabled} onClick={onQr}/>
-            {props.onScrollCapture && <ToolButton icon="arrows.up.down"
-              title={props.scrollCaptureUnavailable ? `${t("Scrolling Screenshot")} · ${t(props.scrollCaptureUnavailable)}` : t("Scrolling Screenshot")}
-              disabled={disabled || !!props.scrollCaptureUnavailable} onClick={props.onScrollCapture}/>}
-            <ToolButton icon="slider.horizontal.3" title={t(canSetSize ? "Resize selection" : "Tool options")}
-              active={canSetSize ? sizeControlsOpen : detailsOpen} expanded={canSetSize ? sizeControlsOpen : detailsOpen}
-              onClick={() => canSetSize ? onToggleSize() : toggleDetails()}/>
+          <div className="kiri-annotation-tool-group kiri-capture-primary-actions">
+            <ToolButton icon="paperplane" title={t("Share to LanChat")}
+              share disabled={disabled} onClick={onShare}/>
             <ToolButton icon="pin" title={t("Pin Screenshot on Top")} disabled={disabled} onClick={onPin}/>
-            <ToolButton icon="checkmark" title={t("Done — Copy to clipboard")} shortcut="Enter" primary disabled={disabled} onClick={onDone}/>
+            <ToolButton icon="xmark" title={t("Cancel capture · Esc")} shortcut="Escape" onClick={onCancel}/>
+            <ToolButton icon="checkmark" title={t("Done — Copy to clipboard")}
+              shortcut="Enter" primary disabled={disabled} onClick={onDone}/>
           </div>
         </div>
+        {moreOpen && <div ref={moreRef} role="menu" aria-label={t("More Actions")}
+          className="kiri-hud kiri-capture-more-menu"
+          onPointerDown={event => event.stopPropagation()}
+          style={{position: "absolute", left: moreLayout.left - left, top: moreLayout.top - top,
+            width: moreLayout.width, maxHeight: moreLayout.maxHeight}}>
+          {MORE_TOOLS.map(moreButton)}
+          <div className="kiri-capture-more-divider" role="separator"/>
+          <MoreToolbarItem icon="arrow.uturn.forward" label={t("Redo")} shortcut="Mod+Shift+Z"
+            disabled={disabled || !canRedo}
+            onClick={() => { setMoreOpen(false); onRedo(); }}/>
+          <MoreToolbarItem icon="text.viewfinder" label={t("Recognize Text")}
+            disabled={disabled} onClick={() => { setMoreOpen(false); onOcr(); }}/>
+          {props.onScrollCapture && <MoreToolbarItem icon="arrows.up.down"
+            label={t("Scrolling Screenshot")}
+            title={props.scrollCaptureUnavailable ? t(props.scrollCaptureUnavailable) : undefined}
+            disabled={disabled || !!props.scrollCaptureUnavailable}
+            onClick={() => { setMoreOpen(false); props.onScrollCapture?.(); }}/>}
+          <MoreToolbarItem icon="slider.horizontal.3"
+            label={t(canSetSize ? "Resize selection" : "Tool options")}
+            active={canSetSize ? sizeControlsOpen : detailsOpen}
+            disabled={disabled}
+            onClick={openToolOptions}/>
+        </div>}
         {showOptions && <div ref={optionsRef} className="kiri-hud kiri-capture-tool-options"
           onPointerDownCapture={event => {
             if (disabled || event.button !== 0 || !event.isPrimary || optionsAdjustment.current.pointerId !== null) return;
@@ -2334,3 +2487,36 @@ export function Toolbar(props: ToolbarProps) {
 }
 
 const ToolButton = AnnotationToolbarButton;
+
+function MoreToolbarItem(props: {
+  icon: IconName;
+  label: string;
+  title?: string;
+  shortcut?: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick(): void;
+}) {
+  const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+  const keyLabel = props.shortcut
+    ? props.shortcut.split("+").map(part => part === "Mod" ? (mac ? "⌘" : "Ctrl")
+      : part === "Shift" ? (mac ? "⇧" : "Shift")
+      : part).join(mac ? "" : "+")
+    : null;
+  return (
+    <button type="button" role="menuitem" className="kiri-capture-more-item"
+      data-active={props.active || undefined}
+      aria-pressed={props.active}
+      aria-keyshortcuts={props.shortcut}
+      title={props.title ?? props.label}
+      disabled={props.disabled}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") event.stopPropagation();
+      }}
+      onClick={props.onClick}>
+      <KiriIcon name={props.icon} size={16}/>
+      <span>{props.label}</span>
+      {keyLabel && <kbd aria-hidden="true">{keyLabel}</kbd>}
+    </button>
+  );
+}

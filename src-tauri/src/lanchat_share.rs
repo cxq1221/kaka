@@ -558,7 +558,14 @@ pub async fn share_asset_to_lanchat(
     app: AppHandle,
     id: String,
 ) -> Result<LanChatShareResult, String> {
-    let (path, display_name) = asset_share_path(&app, &id)?;
+    share_saved_asset(&app, &id).await
+}
+
+pub(crate) async fn share_saved_asset(
+    app: &AppHandle,
+    id: &str,
+) -> Result<LanChatShareResult, String> {
+    let (path, display_name) = asset_share_path(app, id)?;
     let metadata =
         fs::metadata(&path).map_err(|_| LanChatShareError::InvalidAsset.message().to_string())?;
     if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_SHARE_BYTES {
@@ -568,7 +575,7 @@ pub async fn share_asset_to_lanchat(
         .await
         .map_err(|error| error.to_string())?
         .map_err(|_| LanChatShareError::InvalidAsset.message().to_string())?;
-    share_image(&config_path(&app)?, &display_name, &bytes)
+    share_image(&config_path(app)?, &display_name, &bytes)
         .await
         .map_err(|error| error.message().to_string())
 }

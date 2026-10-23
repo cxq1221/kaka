@@ -39,7 +39,7 @@ modules.
 | Label | Purpose |
 | --- | --- |
 | `library` | Capture library and Settings |
-| `overlay` | Active-display capture, selection, annotation, and OCR consent |
+| `overlay`, `overlay-*` | Per-display capture, selection, annotation, and OCR consent |
 | `countdown` | Recording countdown |
 | `control-panel` | Recording pause/resume/stop controls |
 | `scroll-capture` | Nonactivating scrolling screenshot preview and completion controls |
@@ -149,10 +149,11 @@ reads after a newer change. See ADR 0079.
    `--record` and `--ocr` choose the corresponding selection mode, while
    `--library` presents the main window. See ADR 0110 for configuration migration,
    duplicate protection, and shortcut-recorder ownership.
-2. macOS freezes the active display with ScreenCaptureKit. Windows frozen
-   stills use the GDI path exposed through `xcap`; Windows Graphics Capture
-   remains the recording backend. Linux X11 uses `xcap` for the monitor under
-   the pointer and its window bounds. Wayland checks for one connected display
+2. macOS freezes every connected display, ordering the display under the
+   pointer first, then creates one interactive overlay per display. Windows
+   frozen stills use the GDI path exposed through `xcap`; Windows Graphics
+   Capture remains the recording backend. Linux X11 uses `xcap` for the monitor
+   under the pointer and its window bounds. Wayland checks for one connected display
    before starting, then uses compatible system `grim` or the Screenshot
    portal (GNOME). Wayland supplies no window hit-test bounds. Frozen-image
    dimensions and monitor geometry must agree; multi-display Wayland capture
@@ -169,10 +170,13 @@ reads after a newer change. See ADR 0079.
    already captured frame. Stage-specific failures remain visible, and Kaka
    will not accumulate replacement workers while the original worker is still
    active.
-3. Rust keeps one reference-counted allocation for the full frozen PNG and
-   shares it with the session, OCR preparation, and custom protocol. The
-   overlay receives a capture-scoped, unguessable `kaka://` URL. The image is
-   not written to disk.
+3. Rust keeps one reference-counted allocation per frozen display and shares it
+   with the session, OCR preparation, and custom protocol. Each overlay receives
+   a display-scoped, unguessable `kaka://` URL; capture events and window bounds
+   are addressed to that overlay instead of broadcast to every capture window.
+   Confirmation, OCR, QR recognition, scrolling capture, and recording resolve
+   the display from the overlay that initiated the action. Images are not
+   written to disk.
 4. The overlay performs window hit testing, region selection, and annotation in
    a fixed logical document coordinate space. macOS includes visible third-party
    floating panels, including subtitle overlays, in addition to normal windows.
@@ -530,11 +534,13 @@ markers to the editor and library menu while preserving pending edits.
 
 ## LanChat screenshot sharing
 
-The completion card and image-library menu offer an explicit **Send to
-LanChat** action. The renderer sends only the managed asset id through IPC.
-`lanchat_share.rs` resolves the active image in Rust, reads the flattened file,
-discovers a room, and performs the upload; frontend windows never receive a
-filesystem path, cookie, or direct HTTP capability.
+The screenshot toolbar, completion card, and image-library menu offer explicit
+**Send to LanChat** actions. Toolbar sharing finishes the normal local save and
+clipboard path before the overlay is dismissed and the upload begins. The
+completion path sends only the managed asset id through IPC. `lanchat_share.rs`
+resolves the active image in Rust, reads the flattened file, discovers a room,
+and performs the upload; frontend windows never receive a filesystem path,
+cookie, or direct HTTP capability.
 
 Discovery checks `/api/health` on loopback ports `81` and `8787`. Settings may
 persist one custom `http://` origin, but only loopback or private-network hosts

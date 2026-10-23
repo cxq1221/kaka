@@ -32,9 +32,9 @@ use crate::state::RecoveryAction;
 use crate::state::{
     emit_asset_content_changed, emit_error, emit_library_changed, emit_notice, emit_notice_local,
     emit_notice_on_monitor, emit_recording_state, show_completion_preview, ActiveRecording,
-    AppState, ApprovedEditorSave, CaptureSession, CompletionPreviewDto, PendingCaptureCompletion,
-    RecordingConfiguration, RecordingFlow, RecordingSaveJobDto, RecordingSaveJobGuard,
-    StagedCaptureAnnotation, StagedEditorAnnotation,
+    AppState, ApprovedEditorSave, CaptureSession, CompletionPreviewDto, CompletionPreviewSnapshot,
+    PendingCaptureCompletion, RecordingConfiguration, RecordingFlow, RecordingSaveJobDto,
+    RecordingSaveJobGuard, StagedCaptureAnnotation, StagedEditorAnnotation,
 };
 
 // ---------------------------------------------------------------------------
@@ -74,6 +74,17 @@ fn publish_gif_state(app: &AppHandle, update: GifConversionStateDto) {
 #[tauri::command]
 pub fn get_gif_conversion_states(app: AppHandle) -> Vec<GifConversionStateDto> {
     app.state::<AppState>().gif_conversions.lock().unwrap().values().cloned().collect()
+}
+
+#[tauri::command]
+pub fn get_completion_preview(
+    window: WebviewWindow,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<CompletionPreviewSnapshot>, String> {
+    if window.label() != "toast" {
+        return Err("Only the completion preview can read its latest state.".into());
+    }
+    Ok(state.completion_preview.lock().unwrap().clone())
 }
 
 impl From<&Rect> for RectDto {
@@ -1910,14 +1921,29 @@ fn export_gif_file(
 // Capture flow commands (Windows startup is dispatched from a worker thread)
 // ---------------------------------------------------------------------------
 
-fn capture_context(session: &CaptureSession) -> CaptureContextDto {
-    let display = &session.display;
+fn capture_context_for_owner(
+    session: &CaptureSession,
+    owner_label: &str,
+) -> CaptureContextDto {
+    let display = session
+        .displays
+        .get(owner_label)
+        .unwrap_or(&session.display);
+    let capture_token = session
+        .capture_tokens
+        .get(owner_label)
+        .cloned()
+        .unwrap_or_else(|| session.capture_token.clone());
     CaptureContextDto {
         capture_id: session.capture_id,
-        capture_token: session.capture_token.clone(),
+        capture_token,
         image_ready: !display.png_data.is_empty(),
-        window_rects_ready: session.window_rects_ready,
-        resident_overlay: session.resident_overlay,
+        window_rects_ready: session
+            .window_rects_ready_by_owner
+            .get(owner_label)
+            .copied()
+            .unwrap_or(session.window_rects_ready),
+        resident_overlay: session.resident_overlay && owner_label == "overlay",
         initial_mode: session.initial_mode,
         display_width: display.screen_frame.width,
         display_height: display.screen_frame.height,
@@ -1927,6 +1953,15 @@ fn capture_context(session: &CaptureSession) -> CaptureContextDto {
         window_rects: display.window_rects.iter().map(RectDto::from).collect(),
         source_application: session.source_application.clone(),
     }
+}
+
+fn capture_context(session: &CaptureSession) -> CaptureContextDto {
+    let owner_label = session
+        .overlay_labels
+        .first()
+        .map(String::as_str)
+        .unwrap_or("overlay");
+    capture_context_for_owner(session, owner_label)
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -2023,7 +2058,7 @@ pub(crate) fn start_capture_with_mode(
 
     #[cfg(target_os = "macos")]
     {
-        let (display, frame) = match capture_backend::capture_active_display_frame() {
+        let displays = match capture_backend::capture_all_display_frames() {
             Ok(captured) => captured,
             Err(error) => {
                 restore_capture_origin(&app, &hidden_windows, was_kiri_frontmost, pid);
@@ -2035,8 +2070,7 @@ pub(crate) fn start_capture_with_mode(
         };
         return finish_deferred_macos_capture(
             &app,
-            display,
-            frame,
+            displays,
             pid,
             name,
             was_kiri_frontmost,
@@ -2312,6 +2346,12 @@ fn finish_frozen_capture(
     log::info!("start_capture: frozen image published capture_id={capture_id}");
 
     let overlay_label = "overlay".to_string();
+    let mut displays = HashMap::new();
+    displays.insert(overlay_label.clone(), display.clone());
+    let mut capture_tokens = HashMap::new();
+    capture_tokens.insert(overlay_label.clone(), capture_token.clone());
+    let mut window_rects_ready_by_owner = HashMap::new();
+    window_rects_ready_by_owner.insert(overlay_label.clone(), true);
     log::info!("start_capture: publishing capture session capture_id={capture_id}");
     {
         let state = app.state::<AppState>();
@@ -2323,6 +2363,9 @@ fn finish_frozen_capture(
             resident_overlay: false,
             initial_mode,
             display,
+            displays,
+            capture_tokens,
+            window_rects_ready_by_owner,
             source_application: name,
             return_pid: pid,
             was_kiri_frontmost,
@@ -2334,7 +2377,9 @@ fn finish_frozen_capture(
     log::info!("start_capture: capture session published capture_id={capture_id}");
 
     log::info!("start_capture: creating overlay window capture_id={capture_id}");
-    if let Err(error) = create_overlay_window(app, overlay_frame, overlay_scale, &capture_token) {
+    if let Err(error) =
+        create_overlay_window(app, &overlay_label, overlay_frame, overlay_scale, &capture_token)
+    {
         let failed_session = {
             let state = app.state::<AppState>();
             let mut capture = state.capture.lock().unwrap();
@@ -2370,58 +2415,87 @@ fn finish_frozen_capture(
 #[allow(clippy::too_many_arguments)]
 fn finish_deferred_macos_capture(
     app: &AppHandle,
-    display: crate::capture::CapturedDisplay,
-    frame: capture_backend::DeferredCaptureFrame,
+    captures: Vec<capture_backend::DeferredDisplayCapture>,
     pid: Option<u32>,
     name: Option<String>,
     was_kiri_frontmost: bool,
     hidden_windows: Vec<String>,
     initial_mode: crate::state::CaptureMode,
 ) -> Result<CaptureContextDto, String> {
+    if captures.is_empty() {
+        return Err("No display could be captured.".into());
+    }
     let capture_id = uuid::Uuid::new_v4();
-    let capture_token = {
-        let store = app.state::<crate::protocol::ProtocolStore>();
-        crate::protocol::reserve_frozen_capture(&store, capture_id)
-    };
-    let overlay_frame = display.screen_frame;
-    let overlay_scale = display.backing_scale;
-    let display_id = display.display_id;
-    let context = CaptureContextDto {
-        capture_id,
-        capture_token: capture_token.clone(),
-        image_ready: false,
-        window_rects_ready: false,
-        resident_overlay: true,
-        initial_mode,
-        display_width: overlay_frame.width,
-        display_height: overlay_frame.height,
-        scale: overlay_scale,
-        pixel_width: display.pixel_width,
-        pixel_height: display.pixel_height,
-        window_rects: Vec::new(),
-        source_application: name.clone(),
-    };
+    let mut display_entries = Vec::with_capacity(captures.len());
+    let mut displays = HashMap::with_capacity(captures.len());
+    let mut capture_tokens = HashMap::with_capacity(captures.len());
+    let mut window_rects_ready_by_owner = HashMap::with_capacity(captures.len());
+    let mut overlay_labels = Vec::with_capacity(captures.len());
+    let mut primary_label = String::new();
+    let mut primary_token = String::new();
+    for (index, capture) in captures.into_iter().enumerate() {
+        let label = if index == 0 {
+            "overlay".to_string()
+        } else {
+            format!("overlay-{}", capture.display.display_id)
+        };
+        let token = {
+            let store = app.state::<crate::protocol::ProtocolStore>();
+            crate::protocol::reserve_frozen_capture(&store, capture_id)
+        };
+        if index == 0 {
+            primary_label = label.clone();
+            primary_token = token.clone();
+        }
+        displays.insert(label.clone(), capture.display);
+        capture_tokens.insert(label.clone(), token);
+        window_rects_ready_by_owner.insert(label.clone(), false);
+        overlay_labels.push(label.clone());
+        display_entries.push((label, capture.frame));
+    }
+    let primary_display = displays
+        .get(&primary_label)
+        .cloned()
+        .ok_or_else(|| "The active display could not be prepared.".to_string())?;
 
-    {
+    let contexts = {
         let state = app.state::<AppState>();
         let mut capture = state.capture.lock().unwrap();
         capture.session = Some(CaptureSession {
             capture_id,
-            capture_token,
+            capture_token: primary_token,
             window_rects_ready: false,
             resident_overlay: true,
             initial_mode,
-            display,
+            display: primary_display.clone(),
+            displays,
+            capture_tokens,
+            window_rects_ready_by_owner,
             source_application: name,
             return_pid: pid,
             was_kiri_frontmost,
             hidden_windows,
-            overlay_labels: vec!["overlay".into()],
+            overlay_labels: overlay_labels.clone(),
             annotation: None,
         });
-    }
+        let session = capture.session.as_ref().unwrap();
+        overlay_labels
+            .iter()
+            .map(|label| (label.clone(), capture_context_for_owner(session, label)))
+            .collect::<Vec<_>>()
+    };
+    let context = contexts
+        .iter()
+        .find(|(label, _)| label == &primary_label)
+        .map(|(_, context)| context.clone())
+        .ok_or_else(|| "The active display context could not be prepared.".to_string())?;
 
-    if let Err(error) = show_resident_overlay(app, overlay_frame, was_kiri_frontmost) {
+    if let Err(error) = show_resident_overlay(
+        app,
+        primary_display.screen_frame,
+        primary_display.backing_scale,
+        was_kiri_frontmost,
+    ) {
         let failed_session = {
             let state = app.state::<AppState>();
             let mut capture = state.capture.lock().unwrap();
@@ -2436,106 +2510,201 @@ fn finish_deferred_macos_capture(
             }
         };
         if let Some(session) = failed_session {
-            teardown_cancelled_capture(app, session, false);
+            teardown_cancelled_capture(app, session, true);
         }
         return Err(format!("The capture overlay could not be shown: {error}"));
     }
+    for (label, context) in &contexts {
+        if label == &primary_label {
+            continue;
+        }
+        let display = {
+            let state = app.state::<AppState>();
+            let capture = state.capture.lock().unwrap();
+            capture
+                .session
+                .as_ref()
+                .and_then(|session| session.displays.get(label).cloned())
+        };
+        let Some(display) = display else {
+            continue;
+        };
+        if let Err(error) = create_overlay_window(
+            app,
+            label,
+            display.screen_frame,
+            display.backing_scale,
+            &context.capture_token,
+        ) {
+            let failed_session = {
+                let state = app.state::<AppState>();
+                let mut capture = state.capture.lock().unwrap();
+                if capture
+                    .session
+                    .as_ref()
+                    .is_some_and(|session| session.capture_id == capture_id)
+                {
+                    capture.session.take()
+                } else {
+                    None
+                }
+            };
+            if let Some(session) = failed_session {
+                teardown_cancelled_capture(app, session, true);
+            }
+            return Err(format!(
+                "The capture overlay for another display could not be shown: {error}"
+            ));
+        }
+    }
     let overlay_focused = app
-        .get_webview_window("overlay")
+        .get_webview_window(&primary_label)
         .and_then(|window| window.is_focused().ok())
         .unwrap_or(false);
     sync_capture_escape_shortcut(app, capture_id, overlay_focused);
-    let _ = app.emit_to("overlay", "capture-started", &context);
+    for (label, context) in &contexts {
+        let _ = app.emit_to(label, "capture-started", context);
+    }
 
-    let encode_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        match capture_backend::encode_capture_frame_png(frame) {
-            Ok((png, width, height)) => {
-                let store = encode_app.state::<crate::protocol::ProtocolStore>();
-                if !crate::protocol::publish_frozen_png(&store, capture_id, png.clone()) {
-                    log::warn!(
-                        "capture: discarded image for stale capture_id={capture_id}"
-                    );
-                    return;
-                }
-                let updated = {
-                    let state = encode_app.state::<AppState>();
-                    let mut capture = state.capture.lock().unwrap();
-                    let Some(session) = capture
-                        .session
-                        .as_mut()
-                        .filter(|session| session.capture_id == capture_id)
-                    else {
+    for (label, frame) in display_entries {
+        let token = contexts
+            .iter()
+            .find(|(owner, _)| owner == &label)
+            .map(|(_, context)| context.capture_token.clone())
+            .unwrap_or_default();
+        let encode_app = app.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            match capture_backend::encode_capture_frame_png(frame) {
+                Ok((png, width, height)) => {
+                    let store = encode_app.state::<crate::protocol::ProtocolStore>();
+                    if !crate::protocol::publish_frozen_png(
+                        &store,
+                        capture_id,
+                        &token,
+                        png.clone(),
+                    ) {
+                        log::warn!(
+                            "capture: discarded image for stale capture_id={capture_id} owner={label}"
+                        );
                         return;
+                    }
+                    let updated = {
+                        let state = encode_app.state::<AppState>();
+                        let mut capture = state.capture.lock().unwrap();
+                        let Some(session) = capture
+                            .session
+                            .as_mut()
+                            .filter(|session| session.capture_id == capture_id)
+                        else {
+                            return;
+                        };
+                        if let Some(display) = session.displays.get_mut(&label) {
+                            display.png_data = png.clone();
+                            display.pixel_width = width;
+                            display.pixel_height = height;
+                        }
+                        if label == "overlay" {
+                            session.display.png_data = png;
+                            session.display.pixel_width = width;
+                            session.display.pixel_height = height;
+                        }
+                        true
                     };
-                    session.display.png_data = png;
-                    session.display.pixel_width = width;
-                    session.display.pixel_height = height;
-                    true
-                };
-                if updated {
-                    let _ = encode_app.emit_to(
-                        "overlay",
-                        "capture-image-ready",
-                        serde_json::json!({ "captureId": capture_id }),
+                    if updated {
+                        let _ = encode_app.emit_to(
+                            &label,
+                            "capture-image-ready",
+                            serde_json::json!({ "captureId": capture_id }),
+                        );
+                    }
+                }
+                Err(error) => {
+                    let message = format!("Screen capture could not start: {error}");
+                    log::error!(
+                        "start_capture: PNG encoding failed owner={label}: {error}"
                     );
+                    let cleanup_app = encode_app.clone();
+                    let _ = encode_app.run_on_main_thread(move || {
+                        let failed_session = {
+                            let state = cleanup_app.state::<AppState>();
+                            let mut capture = state.capture.lock().unwrap();
+                            if capture
+                                .session
+                                .as_ref()
+                                .is_some_and(|session| session.capture_id == capture_id)
+                            {
+                                capture.session.take()
+                            } else {
+                                None
+                            }
+                        };
+                        if let Some(session) = failed_session {
+                            teardown_cancelled_capture(&cleanup_app, session, true);
+                        }
+                        emit_error(&cleanup_app, message, None);
+                    });
                 }
             }
-            Err(error) => {
-                let message = format!("Screen capture could not start: {error}");
-                log::error!("start_capture: PNG encoding failed: {error}");
-                let cleanup_app = encode_app.clone();
-                let _ = encode_app.run_on_main_thread(move || {
-                    let failed_session = {
-                        let state = cleanup_app.state::<AppState>();
-                        let mut capture = state.capture.lock().unwrap();
-                        if capture
-                            .session
-                            .as_ref()
-                            .is_some_and(|session| session.capture_id == capture_id)
-                        {
-                            capture.session.take()
-                        } else {
-                            None
-                        }
-                    };
-                    if let Some(session) = failed_session {
-                        teardown_cancelled_capture(&cleanup_app, session, true);
-                    }
-                    emit_error(&cleanup_app, message, None);
-                });
-            }
-        }
-    });
+        });
+    }
 
-    let rects_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let rects = match capture_backend::capture_window_rects_deferred(display_id) {
-            Ok(rects) => rects,
-            Err(error) => {
-                log::warn!("capture: deferred window enumeration failed: {error}");
-                Vec::new()
-            }
-        };
-        let payload = {
-            let state = rects_app.state::<AppState>();
-            let mut capture = state.capture.lock().unwrap();
-            let Some(session) = capture
+    for label in &overlay_labels {
+        let display_id = {
+            let state = app.state::<AppState>();
+            let capture = state.capture.lock().unwrap();
+            capture
                 .session
-                .as_mut()
-                .filter(|session| session.capture_id == capture_id)
-            else {
-                return;
-            };
-            session.display.window_rects = rects;
-            session.window_rects_ready = true;
-            serde_json::json!({
-                "captureId": capture_id,
-                "windowRects": session.display.window_rects.iter().map(RectDto::from).collect::<Vec<_>>(),
-            })
+                .as_ref()
+                .and_then(|session| session.displays.get(label))
+                .map(|display| display.display_id)
         };
-        let _ = rects_app.emit_to("overlay", "capture-window-rects", payload);
-    });
+        let Some(display_id) = display_id else {
+            continue;
+        };
+        let label = label.clone();
+        let rects_app = app.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let rects = match capture_backend::capture_window_rects_deferred(display_id) {
+                Ok(rects) => rects,
+                Err(error) => {
+                    log::warn!(
+                        "capture: deferred window enumeration failed owner={label}: {error}"
+                    );
+                    Vec::new()
+                }
+            };
+            let payload = {
+                let state = rects_app.state::<AppState>();
+                let mut capture = state.capture.lock().unwrap();
+                let Some(session) = capture
+                    .session
+                    .as_mut()
+                    .filter(|session| session.capture_id == capture_id)
+                else {
+                    return;
+                };
+                let Some(display) = session.displays.get_mut(&label) else {
+                    return;
+                };
+                display.window_rects = rects;
+                session
+                    .window_rects_ready_by_owner
+                    .insert(label.clone(), true);
+                if label == "overlay" {
+                    session.display.window_rects = display.window_rects.clone();
+                }
+                session.window_rects_ready = session
+                    .window_rects_ready_by_owner
+                    .values()
+                    .all(|ready| *ready);
+                serde_json::json!({
+                    "captureId": capture_id,
+                    "windowRects": display.window_rects.iter().map(RectDto::from).collect::<Vec<_>>(),
+                })
+            };
+            let _ = rects_app.emit_to(&label, "capture-window-rects", payload);
+        });
+    }
 
     Ok(context)
 }
@@ -2637,11 +2806,21 @@ pub(crate) fn handle_capture_escape(
         return false;
     }
     if event == ShortcutState::Pressed {
-        let _ = app.emit_to(
-            "overlay",
-            "capture-escape-requested",
-            serde_json::json!({ "captureId": capture_id }),
-        );
+        let labels = state
+            .capture
+            .lock()
+            .unwrap()
+            .session
+            .as_ref()
+            .map(|session| session.overlay_labels.clone())
+            .unwrap_or_default();
+        for label in labels {
+            let _ = app.emit_to(
+                &label,
+                "capture-escape-requested",
+                serde_json::json!({ "captureId": capture_id }),
+            );
+        }
     }
     true
 }
@@ -2650,20 +2829,13 @@ pub(crate) fn handle_capture_escape(
 fn show_resident_overlay(
     app: &AppHandle,
     frame: Rect,
+    backing_scale: f64,
     restore_key_status: bool,
 ) -> anyhow::Result<()> {
     let window = app
         .get_webview_window("overlay")
         .ok_or_else(|| anyhow::anyhow!("the resident overlay is unavailable"))?;
-    platform::place_transient_window(
-        &window,
-        frame,
-        app.primary_monitor()
-            .ok()
-            .flatten()
-            .map(|monitor| monitor.scale_factor())
-            .unwrap_or(1.0),
-    )?;
+    platform::place_transient_window(&window, frame, backing_scale)?;
     window.show()?;
     platform::configure_transient_window(&window, platform::TransientWindowRole::CaptureOverlay);
     if restore_key_status {
@@ -2679,16 +2851,17 @@ pub fn get_capture_state(
     window: WebviewWindow,
     app: AppHandle,
 ) -> Result<Option<CaptureContextDto>, String> {
-    if window.label() != "overlay" {
+    if !window.label().starts_with("overlay") {
         return Err("Capture state is only available to the overlay.".into());
     }
+    let owner = window.label();
     let state = app.state::<AppState>();
     let capture = state.capture.lock().unwrap();
     Ok(capture
         .session
         .as_ref()
-        .filter(|session| session.overlay_labels.iter().any(|label| label == "overlay"))
-        .map(capture_context))
+        .filter(|session| session.overlay_labels.iter().any(|label| label == owner))
+        .map(|session| capture_context_for_owner(session, owner)))
 }
 
 fn hide_library_windows(app: &AppHandle) -> Result<Vec<String>, String> {
@@ -2806,11 +2979,12 @@ pub(crate) fn prepare_resident_overlay(app: &AppHandle) -> Result<(), String> {
 
 fn create_overlay_window(
     app: &AppHandle,
+    label: &str,
     screen_frame: Rect,
     backing_scale: f64,
     capture_token: &str,
 ) -> anyhow::Result<String> {
-    let label = "overlay".to_string();
+    let label = label.to_string();
     // Tauri inner_size/position are LOGICAL (points on macOS, DIPs on
     // Windows); the frontend works in display points 1:1.
     let builder = WebviewWindowBuilder::new(
@@ -2918,11 +3092,12 @@ pub fn cancel_capture(window: WebviewWindow, app: AppHandle) -> Result<(), Strin
 
 #[tauri::command]
 pub fn dismiss_capture_overlay(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
-    if window.label() != "overlay" {
+    if !window.label().starts_with("overlay") {
         return Err("Only the capture overlay can be dismissed here.".into());
     }
+    let label = window.label().to_string();
     platform::hide_window_for_capture(&window).map_err(|error| error.to_string())?;
-    finalize_confirmed_capture_after_overlay_dismissed(&app, "overlay");
+    finalize_confirmed_capture_after_overlay_dismissed(&app, &label);
     Ok(())
 }
 
@@ -2942,10 +3117,10 @@ pub(crate) fn teardown_cancelled_capture(
                         log::error!("capture: resident overlay hide failed: {error}");
                         let _ = window.close();
                     }
-                    let _ = window.emit("capture-ended", ());
                 } else {
                     let _ = window.close();
                 }
+                let _ = window.emit("capture-ended", ());
             }
         }
     }
@@ -3130,7 +3305,11 @@ pub fn prepare_capture_annotation(
         request.selection.width,
         request.selection.height,
     );
-    validate_staged_capture_annotation(&session.display, selection, &document)?;
+    let display = session
+        .displays
+        .get(window.label())
+        .ok_or_else(|| "The capture display is unavailable.".to_string())?;
+    validate_staged_capture_annotation(display, selection, &document)?;
     let token = uuid::Uuid::new_v4();
     session.annotation = Some(StagedCaptureAnnotation {
         token,
@@ -3152,6 +3331,15 @@ pub fn confirm_capture(
         Some(value) if value == "true" => true,
         Some(_) => return Err("The capture pin action is invalid.".into()),
     };
+    let share_to_lanchat = match request.headers().get("x-kiri-share-to-lanchat") {
+        None => false,
+        Some(value) if value == "false" => false,
+        Some(value) if value == "true" => true,
+        Some(_) => return Err("The capture share action is invalid.".into()),
+    };
+    if pin_on_top && share_to_lanchat {
+        return Err("The capture can only have one completion action.".into());
+    }
     let annotation_token = request
         .headers()
         .get("x-kiri-annotation-token")
@@ -3190,14 +3378,20 @@ pub fn confirm_capture(
             .ok_or_else(|| {
                 "The capture annotation snapshot changed before confirmation.".to_string()
             })?;
+        let display = session
+            .displays
+            .get(window.label())
+            .cloned()
+            .ok_or_else(|| "The capture display is unavailable.".to_string())?;
         (
             session.capture_id,
-            session.display.pixel_width,
-            session.display.pixel_height,
+            display.pixel_width,
+            display.pixel_height,
             staged,
-            session.display.clone(),
+            display,
         )
     };
+    let completion_monitor = window.current_monitor().ok().flatten();
     // Validate the complete PNG before consuming the active session or writing
     // to the clipboard/library. This also bounds decoder allocation by the
     // dimensions of the frozen display that owns the request.
@@ -3244,7 +3438,15 @@ pub fn confirm_capture(
     invalidate_capture_resources(&app, &session);
     // Errors must be visible: show the library window before emitting.
     let session_feedback =
-        match confirm_capture_inner(&app, &state, &session, png, pixel_size, editable_project) {
+        match confirm_capture_inner(
+            &app,
+            &state,
+            &session,
+            png,
+            pixel_size,
+            editable_project,
+            completion_monitor,
+        ) {
             Ok(feedback) => feedback,
             Err(error) => {
                 if let Some(window) = app.get_webview_window("library") {
@@ -3275,6 +3477,7 @@ pub fn confirm_capture(
         preview: session_feedback.preview,
         monitor: session_feedback.monitor,
         pin_on_top,
+        share_to_lanchat,
     });
     Ok(())
 }
@@ -3301,13 +3504,9 @@ fn confirm_capture_inner(
     png: &[u8],
     pixel_size: (i64, i64),
     editable_project: Option<(Vec<u8>, AnnotationDocument)>,
+    completion_monitor: Option<Monitor>,
 ) -> Result<CaptureCompletionFeedback, CaptureConfirmationFailure> {
     log::info!("confirm_capture: bytes={}", png.len());
-
-    let completion_monitor = session.overlay_labels.iter().find_map(|label| {
-        app.get_webview_window(label)
-            .and_then(|window| window.current_monitor().ok().flatten())
-    });
     let copied = match platform::write_image_to_clipboard(png) {
         Ok(()) => {
             log::info!("confirm_capture: clipboard write complete");
@@ -3420,7 +3619,7 @@ pub(crate) fn save_scroll_capture(
     let state = app.state::<AppState>();
     let _transition = state.library_transition.lock().unwrap();
     confirm_capture_inner(app, &state, session, png,
-        (i64::from(size.0), i64::from(size.1)), None)
+        (i64::from(size.0), i64::from(size.1)), None, None)
         .map(|feedback| feedback.preview)
         .map_err(|failure| failure.message)
 }
@@ -3433,7 +3632,7 @@ pub(crate) fn save_scroll_capture(
 /// reopening Kiri's hidden windows.
 pub(crate) fn finalize_confirmed_capture_after_overlay_destroyed(app: &AppHandle, label: &str) {
     let state = app.state::<AppState>();
-    let (remaining_labels, completed) = {
+    let (remaining_labels, resident_overlay, completed) = {
         let mut slot = state.pending_capture_completion.lock().unwrap();
         let Some(pending) = slot.as_mut() else {
             return;
@@ -3451,20 +3650,34 @@ pub(crate) fn finalize_confirmed_capture_after_overlay_destroyed(app: &AppHandle
             .overlay_labels
             .retain(|owner| owner != label && app.get_webview_window(owner).is_some());
         let remaining_labels = pending.session.overlay_labels.clone();
+        let resident_overlay = pending.session.resident_overlay;
         let completed = if remaining_labels.is_empty() {
             slot.take()
         } else {
             None
         };
-        (remaining_labels, completed)
+        (remaining_labels, resident_overlay, completed)
     };
 
+    let mut retired_resident = Vec::new();
     for owner in remaining_labels {
         if let Some(window) = app.get_webview_window(&owner) {
-            if let Err(error) = window.close() {
+            if resident_overlay && owner == "overlay" {
+                if let Err(error) = platform::hide_window_for_capture(&window) {
+                    log::error!(
+                        "confirm_capture: resident overlay hide failed label={owner}: {error}"
+                    );
+                    let _ = window.close();
+                }
+                let _ = window.emit("capture-ended", ());
+                retired_resident.push(owner);
+            } else if let Err(error) = window.close() {
                 log::error!("confirm_capture: peer overlay close failed label={owner}: {error}");
             }
         }
+    }
+    for owner in retired_resident {
+        finalize_confirmed_capture_after_overlay_destroyed(app, &owner);
     }
 
     if let Some(completed) = completed {
@@ -3488,6 +3701,40 @@ pub(crate) fn finalize_confirmed_capture_after_overlay_destroyed(app: &AppHandle
                         "exclamationmark.triangle.fill".into(),
                         completed.monitor,
                     );
+                }
+            });
+        } else if completed.share_to_lanchat {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let mut preview = completed.preview;
+                let Some(asset_id) = preview.asset_id.clone() else {
+                    preview.phase = "failed".into();
+                    preview.title = "Saved — LanChat Share Failed".into();
+                    preview.detail = "The saved screenshot is unavailable.".into();
+                    show_completion_preview(&app, &preview, completed.monitor);
+                    return;
+                };
+                let mut sharing = preview.clone();
+                sharing.phase = "processing".into();
+                sharing.title = "Sharing to LanChat".into();
+                show_completion_preview(&app, &sharing, completed.monitor.clone());
+                match crate::lanchat_share::share_saved_asset(&app, &asset_id).await {
+                    Ok(shared) => {
+                        preview.title = if preview.copied {
+                            "Shared and Saved".into()
+                        } else {
+                            "Shared — Copy Failed".into()
+                        };
+                        preview.shared_room_name = Some(shared.room_name);
+                        show_completion_preview(&app, &preview, completed.monitor);
+                    }
+                    Err(error) => {
+                        log::warn!("confirm_capture: share failed: {error}");
+                        preview.phase = "failed".into();
+                        preview.title = "Saved — LanChat Share Failed".into();
+                        preview.detail = error;
+                        show_completion_preview(&app, &preview, completed.monitor);
+                    }
                 }
             });
         } else {
@@ -4279,8 +4526,11 @@ pub struct StartRecordingRequest {
 #[tauri::command]
 pub async fn start_recording_flow(
     app: AppHandle,
+    window: WebviewWindow,
     request: StartRecordingRequest,
 ) -> Result<(), String> {
+    let owner_label = window.label().to_string();
+    let completion_monitor = window.current_monitor().ok().flatten();
     crate::scroll_capture::ensure_idle(&app)?;
     // Do not trigger a privacy prompt for stale/direct IPC without a live
     // user-initiated capture session.
@@ -4357,10 +4607,11 @@ pub async fn start_recording_flow(
             return Err("No active capture session.".into());
         };
         drop(capture);
-        let completion_monitor = session.overlay_labels.iter().find_map(|label| {
-            app.get_webview_window(label)
-                .and_then(|window| window.current_monitor().ok().flatten())
-        });
+        let display = session
+            .displays
+            .get(&owner_label)
+            .cloned()
+            .ok_or_else(|| "The capture display is unavailable.".to_string())?;
         *state.saved_recording_options.lock().unwrap() = saved_options.clone();
         let mut recording = state.recording.lock().unwrap();
         *recording = RecordingFlow {
@@ -4370,16 +4621,16 @@ pub async fn start_recording_flow(
             is_starting: true,
             completion_monitor,
             configuration: Some(RecordingConfiguration {
-                display_id: session.display.display_id,
-                display_identity: session.display.display_identity.clone(),
+                display_id: display.display_id,
+                display_identity: display.display_identity.clone(),
                 region: Rect::new(
                     request.region.x,
                     request.region.y,
                     request.region.width,
                     request.region.height,
                 ),
-                screen_frame: session.display.screen_frame,
-                backing_scale: session.display.backing_scale,
+                screen_frame: display.screen_frame,
+                backing_scale: display.backing_scale,
                 options: options.clone(),
             }),
             ..Default::default()
@@ -4387,8 +4638,8 @@ pub async fn start_recording_flow(
         emit_recording_state(&app, &recording);
         invalidate_capture_resources(&app, &session);
         (
-            session.display.screen_frame,
-            session.display.backing_scale,
+            display.screen_frame,
+            display.backing_scale,
             session.overlay_labels,
             recording.session_id,
         )

@@ -38,12 +38,12 @@ IFS='/' read -r -a path_parts <<< "$relative_path"
 valid_target=false
 if [ "${#path_parts[@]}" -eq 2 ] \
   && { [ "${path_parts[0]}" = "debug" ] || [ "${path_parts[0]}" = "release" ]; } \
-  && [ "${path_parts[1]}" = "kiri" ]; then
+  && { [ "${path_parts[1]}" = "kaka" ] || [ "${path_parts[1]}" = "kiri" ]; }; then
   valid_target=true
 elif [ "${#path_parts[@]}" -eq 3 ] \
   && [ -n "${path_parts[0]}" ] \
   && { [ "${path_parts[1]}" = "debug" ] || [ "${path_parts[1]}" = "release" ]; } \
-  && [ "${path_parts[2]}" = "kiri" ]; then
+  && { [ "${path_parts[2]}" = "kaka" ] || [ "${path_parts[2]}" = "kiri" ]; }; then
   valid_target=true
 fi
 if [ "$valid_target" != true ]; then

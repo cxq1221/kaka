@@ -38,7 +38,7 @@ test('explicit OCR mode switching reuses a finished selection once',()=>{
 });
 
 test('toolbar OCR is explicit, disabled while completing and independent of screenshot completion', () => {
- const toolbar=source.slice(source.indexOf('const TOOLS:'));
+ const toolbar=source.slice(source.indexOf('type ToolDefinition ='));
  const harness=createLibraryHarness({}, `import React,{useState,useRef,useEffect,useLayoutEffect} from "react";
   import {t} from "../i18n"; import {KiriIcon} from "../components/KiriIcons";
   import {AnnotationToolbarButton} from "../components/AnnotationToolbarButton";
@@ -47,11 +47,17 @@ test('toolbar OCR is explicit, disabled while completing and independent of scre
  const component=harness.mount('Toolbar',{selection:{x:100,y:100,width:200,height:100},bounds:{x:0,y:0,width:800,height:600},
   tool:'select',appearance:{},canUndo:false,canRedo:false,canSetSize:false,disabled:false,
   onOcr:()=>recognitions++,onDone:()=>captures++});
- const target=nodes(component.render()).find(node=>node?.props?.title==='Recognize Text');
+ let tree=component.render();
+ nodes(tree).find(node=>node?.props?.title==='More Actions').props.onClick();
+ tree=component.render();
+ const target=nodes(tree).find(node=>node?.props?.label==='Recognize Text');
  assert.ok(target);assert.equal(target.props.icon,'text.viewfinder');
  assert.equal(recognitions,0);target.props.onClick();
  assert.equal(recognitions,1);assert.equal(captures,0);
- const busy=nodes(component.render({selection:{x:100,y:100,width:200,height:100},bounds:{x:0,y:0,width:800,height:600},tool:"select",appearance:{},disabled:true,onOcr:()=>recognitions++})).find(node=>node?.props?.title==='Recognize Text');
+ tree=component.render({selection:{x:100,y:100,width:200,height:100},bounds:{x:0,y:0,width:800,height:600},tool:"select",appearance:{},disabled:true,onOcr:()=>recognitions++});
+ nodes(tree).find(node=>node?.props?.title==='More Actions').props.onClick();
+ tree=component.render({selection:{x:100,y:100,width:200,height:100},bounds:{x:0,y:0,width:800,height:600},tool:"select",appearance:{},disabled:true,onOcr:()=>recognitions++});
+ const busy=nodes(tree).find(node=>node?.props?.label==='Recognize Text');
  assert.equal(busy.props.disabled,true);
  component.unmount();
 });

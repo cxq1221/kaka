@@ -229,4 +229,9 @@ development.
 
 - [ADR 0113: Contextual image editor and zoom](adr/0113-contextual-image-editor-and-zoom.md)
 - [ADR 0114: Explicit LanChat screenshot sharing](adr/0114-explicit-lanchat-screenshot-sharing.md)
+- [ADR 0115: macOS multi-display screenshot overlays](adr/0115-macos-multi-display-screenshot-overlays.md)
   — opt-in local/LAN handoff, strict room discovery, and additive failure behavior.
+- [ADR 0116: Direct successive shape placement](adr/0116-direct-successive-shape-placement.md)
+  — first-drag shape creation with click-only deselection.
+- [ADR 0117: Compact capture toolbar and edge resize affordance](adr/0117-compact-capture-toolbar-and-edge-resize.md)
+  — right-aligned compact toolbar, explicit More overflow, and full-edge resize cursors.

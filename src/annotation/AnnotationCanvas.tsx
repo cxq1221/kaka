@@ -13,10 +13,10 @@ import React, {
   useRef,
   useState,
 } from "react";
-import type { Point, Rect } from "./geom";
+import type { Point, Rect, SelectionHandle } from "./geom";
 import { handleTextEditorKey, isTextComposition, setTextComposition } from "./text-composition.js";
 import type { ColorPreset } from "./model";
-import { clampPoint, hitTestHandle } from "./geom";
+import { clampPoint, hitTestResizeHandle } from "./geom";
 import {
   AnnotationHistory,
   COLOR_HEX,
@@ -249,6 +249,13 @@ type Interaction =
 
 type CanvasFrame = {left: number; top: number; width: number; height: number};
 
+function annotationResizeCursor(handle: SelectionHandle): string {
+  if (handle === "topLeft" || handle === "bottomRight") return "nwse-resize";
+  if (handle === "topRight" || handle === "bottomLeft") return "nesw-resize";
+  if (handle === "left" || handle === "right") return "ew-resize";
+  return "ns-resize";
+}
+
 function selectionHandleAt(mark: AnnotationMark, point: Point, scale: number): string | null {
   if (mark.kind === "callout") return calloutHandleAt(mark, point, 9 * scale);
   if (mark.kind === "line" || mark.kind === "arrow") {
@@ -256,7 +263,7 @@ function selectionHandleAt(mark: AnnotationMark, point: Point, scale: number): s
     if (Math.hypot(point.x - mark.end.x, point.y - mark.end.y) <= 10 * scale) return "end";
     return null;
   }
-  return hitTestHandle(point, selectionBounds(mark), 9 * scale);
+  return hitTestResizeHandle(point, selectionBounds(mark), 9 * scale, 8 * scale);
 }
 
 const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(
@@ -1067,15 +1074,19 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(
         const selectedHandle = selectedLine ? selectionHandleAt(selectedLine, p, hitTestScale.radial) : null;
         const blank = hit === null && !(selectedMatchesTool && selectedHandle !== null);
         const continuousTool = t === "pen" || t === "mosaic";
+        const shapeTool = t === "rectangle" || t === "line" || t === "arrow";
         const finishWatermark = pendingEdit?.watermark &&
           (hit === null || current[hit].id === pendingEdit.id);
-        if (finishWatermark || (blank && (pendingEdit || (selected !== null && !continuousTool)))) {
+        if (finishWatermark || (blank && (pendingEdit || (selected !== null && !continuousTool && !shapeTool)))) {
           // Finish/deselect first, place on the next gesture. Keeping the tool
           // active must not turn the same press into an unwanted new mark.
           finishGesture();
           selectMark(null);
           return;
         }
+        // A shape drag starts immediately even when the previous shape is
+        // still selected. A click without movement still leaves it deselected.
+        if (blank && shapeTool && selected !== null) selectMark(null);
         const editingExistingWatermark = t === "watermark" &&
           ((hit !== null && current[hit].kind === "watermark") ||
             (selectedLine?.kind === "watermark" && selectedHandle !== null));
@@ -1275,49 +1286,30 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(
         if (interaction.kind === "none") {
           if (toolRef.current === "mosaic" && mosaicShapeRef.current==="brush") setBrushCursor(p);
           else if (brushCursorRef.current) setBrushCursor(null);
-          const textTool = toolRef.current === "text" || toolRef.current === "label";
-          if (toolRef.current === "select" || toolRef.current === "line" || toolRef.current === "arrow" || textTool) {
-            // Spec §6.7: handle → crosshair, over a mark → open hand,
-            // otherwise arrow.
-            const current = history.elements;
-            const selected = selectedIndexRef.current;
-            let cursor = "default";
-            const selectedMark = selected === null ? null : current[selected];
-            const activeLine = selectedMark &&
-              (selectedMark.kind === "line" || selectedMark.kind === "arrow") &&
-              (toolRef.current === "select" || toolRef.current === selectedMark.kind);
-            if (activeLine &&
-              (Math.hypot(p.x - selectedMark.start.x, p.y - selectedMark.start.y) <= 10 * hitTestScale.radial ||
-                Math.hypot(p.x - selectedMark.end.x, p.y - selectedMark.end.y) <= 10 * hitTestScale.radial)) {
-              cursor = "crosshair";
-            }
-            if (toolRef.current === "select" && selectedMark?.kind === "callout") {
-              if (calloutHandleAt(selectedMark, p, 9 * hitTestScale.radial)) cursor = "crosshair";
-            } else if ((toolRef.current === "select" || (textTool && selectedMark?.kind === "text")) &&
-              selected !== null && current[selected] && !["line","arrow"].includes(current[selected].kind)) {
-              if (
-                hitTestHandle(
-                  p,
-                  selectionBounds(current[selected]),
-                  9 * hitTestScale.radial,
-                )
-              ) {
-                cursor = "crosshair";
-              }
-            }
-            if (
-              cursor === "default" &&
-              (toolRef.current === "select" || activeLine || textTool) &&
-              (textTool
-                ? current[markIndexAt(current, p, hitTestScale) ?? -1]?.kind === "text"
-                : toolRef.current === "select"
-                ? markIndexAt(current, p, hitTestScale) !== null
-                : markIndexAt(current, p, hitTestScale) === selected)
-            ) {
+          const activeTool = toolRef.current;
+          const textTool = activeTool === "text" || activeTool === "label";
+          const current = history.elements;
+          const selected = selectedIndexRef.current;
+          const selectedMark = selected === null ? null : current[selected];
+          const selectedMatchesTool = !!selectedMark && (
+            activeTool === "select" ||
+            (textTool ? selectedMark.kind === "text" : selectedMark.kind === activeTool)
+          );
+          const hitIndex = markIndexAt(current, p, hitTestScale);
+          let cursor = "default";
+          if (selectedMatchesTool) {
+            const handle = selectionHandleAt(selectedMark, p, hitTestScale.radial);
+            if (handle) {
+              cursor = selectedMark.kind === "line" || selectedMark.kind === "arrow" ||
+                selectedMark.kind === "callout"
+                ? "crosshair"
+                : annotationResizeCursor(handle as SelectionHandle);
+            } else if (hitIndex === selected) {
               cursor = "grab";
             }
-            setSelectCursor(cursor);
           }
+          if (cursor === "default" && activeTool === "select" && hitIndex !== null) cursor = "grab";
+          setSelectCursor(cursor);
           return;
         }
         if (interaction.kind === "draw") {
@@ -1909,16 +1901,14 @@ const AnnotationCanvas = forwardRef<AnnotationCanvasHandle, Props>(
             width: viewport.width,
             height: viewport.height,
             ...(visibleViewport ? {position: "absolute" as const, left: viewport.x, top: viewport.y} : {}),
-            // Spec §6.7: mosaic uses a crosshair, select tracks hover
-            // (arrow/hand/crosshair), all other tools use the arrow.
+            // Mosaic uses a crosshair. All other tools use the hover cursor
+            // so a selected annotation can expose its edge-resize affordance.
             cursor:
               interactionDisabled
                 ? "progress"
                 : tool === "mosaic"
                 ? "crosshair"
-                : tool === "select" || tool === "text" || tool === "label"
-                  ? selectCursor
-                  : "default",
+                : selectCursor,
           }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

@@ -32,6 +32,7 @@ import {
   ScanText,
   QrCode,
   Search,
+  Send,
   Slash,
   SlidersHorizontal,
   Square,
@@ -55,6 +56,7 @@ export type IconName =
   | "rectangle.dashed" // Rectangle (R)
   | "line.diagonal" // Line (L)
   | "arrow.up.right" // Arrow (A)
+  | "paperplane" // Share
   | "textformat" // Text (T)
   | "watermark"
   | "number.circle"
@@ -106,6 +108,7 @@ const ICONS: Record<IconName, React.ComponentType<Record<string, unknown>>> = {
   "rectangle.dashed": SquareDashed,
   "line.diagonal": Slash,
   "arrow.up.right": ArrowUpRight,
+  paperplane: Send,
   textformat: Type,
   watermark: Stamp,
   "number.circle": CircleDot,

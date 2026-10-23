@@ -111,13 +111,17 @@ pub async fn prepare_ocr_request(
                         .any(|label| label == &owner.label)
             })
             .ok_or_else(|| "No active capture session.".to_string())?;
+        let display = session
+            .displays
+            .get(&owner.label)
+            .ok_or_else(|| "The capture display is unavailable.".to_string())?;
         FrozenPngSource {
-            png: session.display.png_data.clone(),
-            declared_width: session.display.pixel_width,
-            declared_height: session.display.pixel_height,
-            display_width: session.display.screen_frame.width,
-            display_height: session.display.screen_frame.height,
-            scale: session.display.backing_scale,
+            png: display.png_data.clone(),
+            declared_width: display.pixel_width,
+            declared_height: display.pixel_height,
+            display_width: display.screen_frame.width,
+            display_height: display.screen_frame.height,
+            scale: display.backing_scale,
         }
     };
     let cropped = tauri::async_runtime::spawn_blocking(move || crop_frozen_png(source, selection))

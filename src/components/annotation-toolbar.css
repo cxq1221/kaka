@@ -16,13 +16,134 @@
 .kiri-annotation-toolbar-button.kiri-toolbar-button[data-primary] {width:48px; flex-basis:48px; height:30px; margin-left:5px; color:#161616; background:#f2f2f2; border-color:#f2f2f2;}
 .kiri-annotation-toolbar-button.kiri-toolbar-button[data-primary]:hover:not(:disabled) {background:#fff; border-color:#fff;}
 .kiri-annotation-toolbar-button[data-primary] .kiri-annotation-toolbar-key {position:static; margin-left:3px; color:#666; font-size:12px; line-height:1;}
+.kiri-annotation-toolbar-button.kiri-toolbar-button[data-label] {width:auto; flex:0 0 auto; min-width:58px; padding:0 9px;}
+.kiri-annotation-toolbar-button[data-label] .kiri-annotation-toolbar-glyph {gap:6px;}
+.kiri-annotation-toolbar-button.kiri-toolbar-button[data-share] {border-color:#4f4f4f; background:#292929; color:#fff;}
+.kiri-annotation-toolbar-button.kiri-toolbar-button[data-share]:hover:not(:disabled) {border-color:#6b6b6b; background:#363636;}
+.kiri-annotation-toolbar-button.kiri-toolbar-button[data-primary][data-label] {width:auto; flex-basis:auto; min-width:70px; padding:0 9px;}
+.kiri-annotation-toolbar-button[data-primary][data-label] .kiri-annotation-toolbar-key {margin-left:1px;}
 .kiri-annotation-toolbar-button:disabled {opacity:.32;}
 .kiri-annotation-toolbar-button.kiri-toolbar-button:focus-visible {outline:2px solid #aaa; outline-offset:1px; box-shadow:none;}
 .kiri-annotation-toolbar-tooltip {position:fixed; z-index:1000; max-width:min(260px, calc(100vw - 16px)); box-sizing:border-box; padding:5px 8px; border:1px solid #414141; border-radius:5px; background:#242424; color:#eee; pointer-events:none; font:400 11px/1.45 var(--kiri-font-ui); overflow-wrap:anywhere;}
 :is(.kiri-capture-toolbar, .kiri-image-editor-tools) .kiri-annotation-tool-group {gap:1px; flex-wrap:wrap; max-width:100%; box-sizing:border-box;}
 :is(.kiri-capture-toolbar, .kiri-image-editor-tools) .kiri-annotation-tool-group + .kiri-annotation-tool-group {position:relative; padding-left:6px; margin-left:2px; border-left:0;}
 :is(.kiri-capture-toolbar, .kiri-image-editor-tools) .kiri-annotation-tool-group + .kiri-annotation-tool-group::before {content:""; position:absolute; left:0; top:50%; width:1px; height:18px; transform:translateY(-50%); background:#3b3b3b;}
-.kiri-capture-toolbar .kiri-annotation-tool-row {row-gap:6px; border-radius:9px; border:1px solid #444; background:#1c1c1c; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none;}
+.kiri-capture-toolbar .kiri-annotation-tool-row {
+  row-gap:6px;
+  color:#181818;
+  border-radius:10px;
+  border:1px solid rgba(0,0,0,.13);
+  background:rgba(255,255,255,.98);
+  box-shadow:0 3px 12px rgba(0,0,0,.18);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  cursor:default;
+}
+.kiri-capture-toolbar .kiri-annotation-tool-group + .kiri-annotation-tool-group::before {background:#dedede;}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button {
+  width:30px;
+  height:30px;
+  flex-basis:30px;
+  border-radius:7px;
+  color:#1b1b1b;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button:hover:not(:disabled) {
+  color:#080808;
+  background:#f0f0f0;
+  border-color:transparent;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button[data-active] {
+  color:#1769bd;
+  background:#e8f2ff;
+  border-color:#c7defa;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button[data-active]:hover:not(:disabled) {
+  color:#0e5faf;
+  background:#dcecff;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button .kiri-annotation-toolbar-key {
+  right:1px;
+  bottom:0;
+  color:#858585;
+  font-size:8.5px;
+  line-height:10px;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button[data-active] .kiri-annotation-toolbar-key {color:#4b7eae;}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button[data-primary] {
+  width:30px;
+  flex-basis:30px;
+  height:30px;
+  margin-left:0;
+  color:#3487ec;
+  background:transparent;
+  border-color:transparent;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button[data-primary]:hover:not(:disabled) {
+  color:#1769bd;
+  background:#e8f2ff;
+  border-color:transparent;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button[data-primary] .kiri-annotation-toolbar-key {
+  position:absolute;
+  right:1px;
+  bottom:0;
+  margin-left:0;
+  color:#6d95be;
+  font-size:8px;
+  line-height:9px;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button[data-share] {
+  color:#4b4b4b;
+  background:transparent;
+  border-color:transparent;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button[data-share]:hover:not(:disabled) {
+  color:#181818;
+  background:#f0f0f0;
+  border-color:transparent;
+}
+.kiri-capture-toolbar .kiri-annotation-toolbar-button.kiri-toolbar-button:focus-visible {
+  outline:2px solid #3487ec;
+  outline-offset:1px;
+  box-shadow:none;
+}
+.kiri-capture-more-menu {
+  display:grid;
+  gap:1px;
+  padding:4px;
+  overflow:auto;
+  border-radius:10px;
+  border-color:rgba(0,0,0,.13);
+  background:rgba(255,255,255,.98);
+  color:#181818;
+  box-shadow:0 5px 18px rgba(0,0,0,.2);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  box-sizing:border-box;
+}
+.kiri-capture-more-item {
+  width:100%;
+  min-height:32px;
+  padding:0 9px;
+  display:grid;
+  grid-template-columns:18px minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  border:1px solid transparent;
+  border-radius:6px;
+  background:transparent;
+  color:#1b1b1b;
+  cursor:pointer;
+  text-align:left;
+  font:500 11.5px/1.25 var(--kiri-font-ui);
+}
+.kiri-capture-more-item span {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.kiri-capture-more-item kbd {color:#7d7d7d; font:500 9px/1 var(--kiri-font-ui); white-space:nowrap;}
+.kiri-capture-more-item:hover:not(:disabled) {background:#f0f0f0; color:#080808;}
+.kiri-capture-more-item[data-active] {color:#1769bd; background:#e8f2ff; border-color:#c7defa;}
+.kiri-capture-more-item:focus-visible {outline:2px solid #3487ec; outline-offset:-1px;}
+.kiri-capture-more-item:disabled {opacity:.38; cursor:default;}
+.kiri-capture-more-divider {height:1px; margin:4px 6px; background:#e3e3e3;}
 .kiri-image-editor-toolbar:has(.kiri-annotation-toolbar-button) {gap:6px 10px; padding:7px 10px;}
 .kiri-image-editor-tools:has(.kiri-annotation-toolbar-button) {row-gap:6px;}
 .kiri-image-editor-actions:has(.kiri-annotation-toolbar-button) {gap:4px;}

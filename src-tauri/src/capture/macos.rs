@@ -230,6 +230,43 @@ fn active_screen() -> Result<ActiveScreen> {
     screen_geometry(&screen)
 }
 
+fn screens_active_first() -> Result<Vec<ActiveScreen>> {
+    let mtm = MainThreadMarker::new()
+        .ok_or_else(|| anyhow!("display capture must start on the main thread"))?;
+    let mouse = NSEvent::mouseLocation();
+    let point = CGPoint {
+        x: mouse.x,
+        y: mouse.y,
+    };
+    let screens = NSScreen::screens(mtm);
+    let mut active_display_id = None;
+    let mut captures = Vec::with_capacity(screens.len());
+    for screen in screens.iter() {
+        let frame = screen.frame();
+        let contains_pointer = point.x >= frame.origin.x
+            && point.x <= frame.origin.x + frame.size.width
+            && point.y >= frame.origin.y
+            && point.y <= frame.origin.y + frame.size.height;
+        let capture = screen_geometry(&screen)?;
+        if contains_pointer {
+            active_display_id = Some(capture.display_id);
+        }
+        if !captures
+            .iter()
+            .any(|existing: &ActiveScreen| existing.display_id == capture.display_id)
+        {
+            captures.push(capture);
+        }
+    }
+    if captures.is_empty() {
+        bail!("display unavailable");
+    }
+    let active_display_id =
+        active_display_id.unwrap_or_else(|| captures[0].display_id);
+    captures.sort_by_key(|capture| capture.display_id != active_display_id);
+    Ok(captures)
+}
+
 fn screen_geometry(screen: &NSScreen) -> Result<ActiveScreen> {
     let frame = screen.frame();
     let display_id = screen
@@ -592,9 +629,14 @@ pub struct DeferredCaptureFrame(CFRetained<CGImage>);
 
 unsafe impl Send for DeferredCaptureFrame {}
 
-/// Captures only the display pixels. ScreenCaptureKit enumeration and window
-/// geometry are intentionally deferred so the overlay can appear first.
-pub fn capture_active_display_frame() -> Result<(CapturedDisplay, DeferredCaptureFrame)> {
+pub struct DeferredDisplayCapture {
+    pub display: CapturedDisplay,
+    pub frame: DeferredCaptureFrame,
+}
+
+/// Captures every display, active display first. ScreenCaptureKit window
+/// enumeration is intentionally deferred so all overlays can appear first.
+pub fn capture_all_display_frames() -> Result<Vec<DeferredDisplayCapture>> {
     match check_capture_permission() {
         PermissionState::Authorized => {}
         PermissionState::RestartRequired => {
@@ -605,28 +647,30 @@ pub fn capture_active_display_frame() -> Result<(CapturedDisplay, DeferredCaptur
         }
     }
 
-    let screen = active_screen()?;
-    let image = unsafe { CGDisplayCreateImage(screen.display_id) }
-        .ok_or_else(|| anyhow!("the active display could not be captured"))?;
-    let pixel_width = CGImageGetWidth(Some(&image)) as i64;
-    let pixel_height = CGImageGetHeight(Some(&image)) as i64;
-    if pixel_width <= 0 || pixel_height <= 0 {
-        bail!("the active display returned an empty image");
+    let mut captures = Vec::new();
+    for screen in screens_active_first()? {
+        let image = unsafe { CGDisplayCreateImage(screen.display_id) }
+            .ok_or_else(|| anyhow!("a connected display could not be captured"))?;
+        let pixel_width = CGImageGetWidth(Some(&image)) as i64;
+        let pixel_height = CGImageGetHeight(Some(&image)) as i64;
+        if pixel_width <= 0 || pixel_height <= 0 {
+            bail!("a connected display returned an empty image");
+        }
+        captures.push(DeferredDisplayCapture {
+            display: CapturedDisplay {
+                png_data: Arc::from([]),
+                pixel_width,
+                pixel_height,
+                screen_frame: screen.frame,
+                window_rects: Vec::new(),
+                display_id: screen.display_id,
+                display_identity: None,
+                backing_scale: screen.backing_scale,
+            },
+            frame: DeferredCaptureFrame(image),
+        });
     }
-
-    Ok((
-        CapturedDisplay {
-            png_data: Arc::from([]),
-            pixel_width,
-            pixel_height,
-            screen_frame: screen.frame,
-            window_rects: Vec::new(),
-            display_id: screen.display_id,
-            display_identity: None,
-            backing_scale: screen.backing_scale,
-        },
-        DeferredCaptureFrame(image),
-    ))
+    Ok(captures)
 }
 
 /// Encodes the already-captured display image without touching AppKit.

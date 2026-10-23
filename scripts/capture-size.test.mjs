@@ -54,7 +54,7 @@ test("edge fields clear resize handles and stay within every display corner", ()
 
 test("the existing screenshot sliders toggle edge fields without completing capture", () => {
   const overlay = readFileSync(new URL("../src/windows/OverlayWindow.tsx", import.meta.url), "utf8");
-  const toolbar = overlay.slice(overlay.indexOf("const TOOLS:"));
+  const toolbar = overlay.slice(overlay.indexOf("type ToolDefinition ="));
   const harness = createLibraryHarness({}, `import React,{useState,useRef,useEffect,useLayoutEffect} from "react";
     import {t} from "../i18n"; import {KiriIcon} from "../components/KiriIcons";
     import {AnnotationToolbarButton} from "../components/AnnotationToolbarButton";
@@ -65,16 +65,23 @@ test("the existing screenshot sliders toggle edge fields without completing capt
     sizeControlsOpen:false, onToggleSize:()=>toggles++, onDone:()=>captures++ };
   const component = harness.mount("Toolbar", props);
   let tree = component.render();
-  let button = nodes(tree).find(node => node?.props?.title === "Resize selection");
+  const openMore = () => {
+    const more = nodes(tree).find(node => node?.props?.title === "More Actions");
+    assert.ok(more);
+    more.props.onClick();
+    tree = component.render();
+  };
+  openMore();
+  let button = nodes(tree).find(node => node?.props?.label === "Resize selection");
   assert.ok(button);
-  assert.equal(button.props.expanded, false);
+  assert.equal(button.props.active, false);
   button.props.onClick();
   assert.equal(toggles, 1);
   assert.equal(captures, 0);
   tree = component.render({ ...props, sizeControlsOpen:true });
-  button = nodes(tree).find(node => node?.props?.title === "Resize selection");
+  openMore();
+  button = nodes(tree).find(node => node?.props?.label === "Resize selection");
   assert.equal(button.props.active, true);
-  assert.equal(button.props.expanded, true);
   assert.equal(nodes(tree).filter(node => node?.type === "input").length, 0);
   component.unmount();
 });
@@ -85,5 +92,5 @@ test("above-selection toolbar placement leaves space for the width field", () =>
   const toolbar = { width: 784, height: 81 };
   const position = captureToolbarPosition(selection, bounds, toolbar, true);
   const fields = captureSizePositions(selection, bounds, {width:{width:52,height:24},height:{width:48,height:24}});
-  assert.ok(position.top + toolbar.height + 10 <= fields.width.top);
+  assert.ok(position.top + toolbar.height + 6 <= fields.width.top);
 });

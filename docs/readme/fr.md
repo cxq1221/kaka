@@ -23,7 +23,7 @@
 - Enregistrez un MP4 avec le son du système et le microphone en option, ou un GIF sans son.
 - Coupez et réorganisez les clips d’une même vidéo, puis exportez un nouveau MP4.
 - Recherchez, étiquetez, ajoutez aux favoris et exportez vos captures locales ; récupérez les suppressions accidentelles dans la corbeille.
-- Envoyez explicitement une capture terminée vers un salon LanChat local ou de confiance sur le réseau local ; elle apparaît dans l’historique et n’est jamais envoyée automatiquement.
+- Partagez explicitement une capture depuis la barre d’outils ou la carte de fin vers un salon LanChat local ou de confiance sur le réseau local ; elle apparaît dans l’historique et n’est jamais envoyée automatiquement.
 - Définissez, désactivez ou rétablissez les raccourcis globaux dans les réglages ; les commandes d’enregistrement ne sont actives que pendant celui-ci ([Wayland utilise les réglages du bureau](../linux.md)).
 
 ## Premiers pas

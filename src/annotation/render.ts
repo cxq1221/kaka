@@ -10,7 +10,7 @@ import type {
 } from "./model";
 import { COLOR_HEX, MOSAIC_VIEW_BLOCK_SIZE, arrowHeadPoints, calloutConnectorEnd, selectionBounds, labelGeometry } from "./model";
 import type { Point, Rect } from "./geom";
-import { inset, intersection, maxX, maxY, minX, minY, standardized } from "./geom";
+import { intersection, maxX, maxY, minX, minY, standardized } from "./geom";
 import { layoutTextLines, textLineRuns } from "./text-layout.js";
 import {blurCanvas} from "./canvas-blur";
 import { mosaicDocumentBlurRadius, orderedMosaics } from "./mosaic-render";
@@ -628,7 +628,7 @@ export function renderAll(r: RenderContext, marks: AnnotationMark[], options: Re
   }
   if (!r.exporting && options.selectedIndex !== null && options.selectedIndex !== undefined) {
     const selected = marks[options.selectedIndex];
-    if (selected) drawSelectionOutline(ctx, selected, r.viewScaleX, r.viewScaleY);
+    if (selected) drawSelectionHandles(ctx, selected, r.viewScaleX, r.viewScaleY);
   }
 }
 
@@ -659,7 +659,7 @@ function drawBrushCursor(
   ctx.restore();
 }
 
-function drawSelectionOutline(
+function drawSelectionHandles(
   ctx: CanvasRenderingContext2D,
   mark: AnnotationMark,
   viewScaleX: number,
@@ -691,16 +691,6 @@ function drawSelectionOutline(
     ctx.restore();
     return;
   }
-  const outline = inset(standardized(bounds), 5, 5);
-  roundRectPath(ctx, outline.x, outline.y, outline.width, outline.height, 6);
-  ctx.setLineDash([4, 3]);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.96)";
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.strokeStyle = "#050505";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.setLineDash([]);
   {
     const handles = [
       { x: minX(bounds), y: minY(bounds) },

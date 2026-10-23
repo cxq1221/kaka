@@ -320,6 +320,7 @@ function annotation(initialDocument, options = {}) {
 
 const documentWith = marks => ({schemaVersion: 1, canvas: {width: 640, height: 360}, sourcePixels: {width: 640, height: 360}, marks});
 const inlineEditor = h => nodes(h.component.render()).find(node => node?.type?.name === "TextEditor");
+const canvasCursor = h => nodes(h.component.render()).find(node => node?.type === "canvas").props.style.cursor;
 const blankPress = h => {
   h.pointer("onPointerDown", 550, 310, {detail: 0});
   h.pointer("onPointerUp", 550, 310, {detail: 0});
@@ -399,22 +400,24 @@ for (const tool of ["select", "pen", "rectangle", "line", "arrow", "text", "labe
 
 for (const tool of ["rectangle", "line", "arrow"]) {
   const mark = tool === "rectangle" ? rectangle : {kind: tool, id: 2, start: {x: 100, y: 100}, end: {x: 200, y: 180}, color: "white", width: 3};
-  test(`${tool} clears selection on the first blank gesture and draws on the next`, async () => {
+  test(`${tool} clears selection and draws on the first blank drag`, async () => {
     const selected = [], h = annotation(documentWith([mark]), {tool, selectedMarkId: mark.id, onSelectionChange: id => selected.push(id)});
-    for (let n = 0; n < 2; n++) {
-      h.pointer("onPointerDown", 380, 210);
-      h.pointer("onPointerMove", 460, 260);
-      h.pointer("onPointerUp", 460, 260);
-      if (n === 0) {
-        assert.deepEqual(h.changes, []); assert.equal(selected.at(-1), null);
-        assert.deepEqual(h.frames.at(-1).marks, [mark]);
-      }
-    }
+    h.pointer("onPointerDown", 380, 210);
+    h.pointer("onPointerMove", 460, 260);
+    h.pointer("onPointerUp", 460, 260);
     assert.equal(h.changes.length, 1); assert.equal(h.changes[0].length, 2);
     assert.deepEqual(h.changes[0][0], mark);
+    assert.equal(selected.at(-1), h.changes[0][1].id);
     h.ref.current.undo(); h.component.render(); assert.deepEqual(h.changes.at(-1), [mark]);
     h.ref.current.redo(); h.component.render();
     assert.equal((await h.ref.current.exportResult()).document.marks.length, 2);
+  });
+  test(`${tool} still clears selection on a blank click without creating a mark`, () => {
+    const selected = [], h = annotation(documentWith([mark]), {tool, selectedMarkId: mark.id, onSelectionChange: id => selected.push(id)});
+    h.pointer("onPointerDown", 380, 210);
+    h.pointer("onPointerUp", 380, 210);
+    assert.deepEqual(h.changes, []); assert.equal(selected.at(-1), null);
+    assert.equal(h.frames.at(-1).options.draft, null);
   });
   for (const selected of [false, true]) {
     test(`${tool} moves its ${selected ? "selected" : "unselected"} object on the first body drag`, () => {
@@ -426,6 +429,23 @@ for (const tool of ["rectangle", "line", "arrow"]) {
       assert.deepEqual(h.changes[0], [model.translateMark(mark, {x: 30, y: 20}, {x: 0, y: 0, width: 640, height: 360})]);
     });
   }
+}
+
+for (const tool of ["rectangle", "line", "arrow"]) {
+  test(`${tool} creates consecutive marks on the first drag without a deselection gesture`, async () => {
+    const h = annotation(documentWith([]), {tool});
+    for (const x of [80, 300]) {
+      h.pointer("onPointerDown", x, 80);
+      h.pointer("onPointerMove", x + 50, 120);
+      h.pointer("onPointerUp", x + 50, 120);
+    }
+    assert.equal(h.changes.length, 2);
+    assert.equal(h.changes[1].length, 2);
+    assert.ok(h.changes[1].every(mark => mark.kind === tool));
+    const saved = (await h.ref.current.exportResult()).document;
+    assert.equal(saved.marks.length, 2);
+    h.ref.current.undo(); h.component.render(); assert.deepEqual(h.changes.at(-1), [saved.marks[0]]);
+  });
 }
 
 for (const [tool, mosaicShape] of [["pen", "brush"], ["mosaic", "brush"], ["mosaic", "rectangle"], ["mosaic", "ellipse"]]) {
@@ -1529,6 +1549,28 @@ test("a newly drawn rectangle moves immediately and can be reopened without a gh
   assert.equal(reopened.frames.at(-1).marks[0].rect.x,140);
   assert.equal(reopened.frames.at(-1).options.draft,null);
   h.component.unmount();reopened.component.unmount();
+});
+
+test("a newly drawn rectangle exposes edge resize on the first hover and drag", () => {
+  const h = annotation(documentWith([]), {tool: "rectangle"});
+  h.pointer("onPointerDown", 100, 100);
+  h.pointer("onPointerMove", 200, 180);
+  h.pointer("onPointerUp", 200, 180);
+  assert.equal(h.changes.length, 1);
+
+  h.pointer("onPointerMove", 207, 130);
+  assert.equal(canvasCursor(h), "ew-resize",
+    "the right edge is resizable beyond the visible handle ring");
+
+  h.pointer("onPointerDown", 207, 130);
+  h.pointer("onPointerMove", 227, 130);
+  const resized = h.frames.at(-1).marks[0];
+  assert.equal(resized.kind, "rectangle");
+  assert.equal(resized.rect.x, 100);
+  assert.equal(resized.rect.width, 120);
+  h.pointer("onPointerUp", 227, 130);
+  assert.equal(h.changes.at(-1)[0].rect.width, 120);
+  h.component.unmount();
 });
 
 test("selecting a label stays stationary when its inspector changes the stage mid-click",()=>{

@@ -36,6 +36,9 @@ test("editor QR IPC preserves source revision and exposes the editor request eve
   new Function("require", "module", "exports", ipc)(name => {
     if (name === "@tauri-apps/api/core") return { invoke: async (...args) => invokes.push(args) };
     if (name === "@tauri-apps/api/event") return { listen: async (...args) => listens.push(args) };
+    if (name === "@tauri-apps/api/webviewWindow") return {
+      getCurrentWebviewWindow: () => ({ listen: async (...args) => listens.push(args) }),
+    };
     if (name === "./kiri-resource-url.js") return { kiriResourceUrl() {} };
     throw new Error(`Unexpected IPC import: ${name}`);
   }, module, module.exports);
@@ -54,7 +57,7 @@ test("editor QR IPC preserves source revision and exposes the editor request eve
 
 test("screenshot toolbar recognition is explicit and does not complete the capture", () => {
   const overlay = readFileSync(new URL("../src/windows/OverlayWindow.tsx", import.meta.url), "utf8");
-  const toolbar = overlay.slice(overlay.indexOf("const TOOLS:"));
+  const toolbar = overlay.slice(overlay.indexOf("type ToolDefinition ="));
   const harness = createLibraryHarness({}, `import React,{useState,useRef,useEffect,useLayoutEffect} from "react";
     import {t} from "../i18n"; import {KiriIcon} from "../components/KiriIcons";
     import {AnnotationToolbarButton} from "../components/AnnotationToolbarButton";

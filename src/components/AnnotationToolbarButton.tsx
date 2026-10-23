@@ -22,6 +22,8 @@ type Props = {
   active?: boolean;
   expanded?: boolean;
   primary?: boolean;
+  share?: boolean;
+  label?: string;
   disabled?: boolean;
   onClick(): void;
 };
@@ -41,6 +43,8 @@ export function AnnotationToolbarButton(props: Props) {
     <button ref={button} type="button" className="kiri-toolbar-button kiri-annotation-toolbar-button"
       data-active={props.active || undefined}
       data-primary={props.primary || undefined}
+      data-share={props.share || undefined}
+      data-label={props.label || undefined}
       data-key={!!visibleKey || undefined}
       aria-label={props.title} aria-pressed={props.active} aria-expanded={props.expanded}
       aria-keyshortcuts={key?.aria} aria-describedby={showTooltip ? tooltipId : undefined}
@@ -51,7 +55,10 @@ export function AnnotationToolbarButton(props: Props) {
         // Focused actions own activation; do not also confirm the whole capture.
         if (event.key === "Enter" || event.key === " ") event.stopPropagation();
       }} onClick={props.onClick}>
-      <span className="kiri-annotation-toolbar-glyph"><KiriIcon name={props.icon} size={18}/></span>
+      <span className="kiri-annotation-toolbar-glyph">
+        <KiriIcon name={props.icon} size={18}/>
+        {props.label && <span>{props.label}</span>}
+      </span>
       {visibleKey && <kbd className="kiri-annotation-toolbar-key" aria-hidden="true">{visibleKey}</kbd>}
     </button>
     {showTooltip && <ToolbarTooltip id={tooltipId} anchor={button.current} title={tooltipTitle}/>}

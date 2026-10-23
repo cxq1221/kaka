@@ -113,15 +113,15 @@ impl ThumbnailCache {
 
 struct FrozenCapture {
     capture_id: uuid::Uuid,
-    token: String,
-    /// `None` reserves the opaque token while the display frame is encoded on
-    /// a worker. Requests remain rejected until the exact capture publishes.
-    png: Option<Arc<[u8]>>,
+    /// One opaque token per display. `None` reserves a token while that
+    /// display frame is encoded on a worker; requests remain rejected until
+    /// the exact capture publishes its image.
+    pngs: HashMap<String, Option<Arc<[u8]>>>,
 }
 
 pub fn set_frozen_png(store: &ProtocolStore, capture_id: uuid::Uuid, png: Arc<[u8]>) -> String {
     let token = reserve_frozen_capture(store, capture_id);
-    let published = publish_frozen_png(store, capture_id, png);
+    let published = publish_frozen_png(store, capture_id, &token, png);
     debug_assert!(published, "a just-reserved capture must accept its image");
     token
 }
@@ -129,11 +129,21 @@ pub fn set_frozen_png(store: &ProtocolStore, capture_id: uuid::Uuid, png: Arc<[u
 /// Reserves the per-capture image URL before slow PNG encoding completes.
 pub fn reserve_frozen_capture(store: &ProtocolStore, capture_id: uuid::Uuid) -> String {
     let token = uuid::Uuid::new_v4().simple().to_string();
-    *store.frozen_capture.lock().unwrap() = Some(FrozenCapture {
-        capture_id,
-        token: token.clone(),
-        png: None,
-    });
+    let mut frozen_capture = store.frozen_capture.lock().unwrap();
+    if frozen_capture
+        .as_ref()
+        .is_none_or(|capture| capture.capture_id != capture_id)
+    {
+        *frozen_capture = Some(FrozenCapture {
+            capture_id,
+            pngs: HashMap::new(),
+        });
+    }
+    frozen_capture
+        .as_mut()
+        .unwrap()
+        .pngs
+        .insert(token.clone(), None);
     token
 }
 
@@ -141,6 +151,7 @@ pub fn reserve_frozen_capture(store: &ProtocolStore, capture_id: uuid::Uuid) -> 
 pub fn publish_frozen_png(
     store: &ProtocolStore,
     capture_id: uuid::Uuid,
+    token: &str,
     png: Arc<[u8]>,
 ) -> bool {
     let mut frozen_capture = store.frozen_capture.lock().unwrap();
@@ -150,7 +161,10 @@ pub fn publish_frozen_png(
     if capture.capture_id != capture_id {
         return false;
     }
-    capture.png = Some(png);
+    let Some(slot) = capture.pngs.get_mut(token) else {
+        return false;
+    };
+    *slot = Some(png);
     true
 }
 
@@ -448,9 +462,11 @@ fn frozen_png_for_path(store: &ProtocolStore, path: &str) -> Option<Vec<u8>> {
     }
     let capture = store.frozen_capture.lock().unwrap();
     let capture = capture.as_ref()?;
-    let png = capture.png.as_ref()?;
-    constant_time_eq(requested_token.as_bytes(), capture.token.as_bytes())
-        .then(|| png.as_ref().to_vec())
+    capture.pngs.iter().find_map(|(token, png)| {
+        (constant_time_eq(requested_token.as_bytes(), token.as_bytes()))
+            .then(|| png.as_ref().map(|png| png.as_ref().to_vec()))
+            .flatten()
+    })
 }
 
 fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
@@ -987,17 +1003,53 @@ mod tests {
         assert!(!publish_frozen_png(
             &store,
             uuid::Uuid::new_v4(),
+            &token,
             vec![9].into()
         ));
         assert!(frozen_png_for_path(&store, &path).is_none());
         assert!(publish_frozen_png(
             &store,
             capture_id,
+            &token,
             vec![4, 5, 6].into()
         ));
         assert_eq!(
             frozen_png_for_path(&store, &path),
             Some(vec![4, 5, 6])
+        );
+    }
+
+    #[test]
+    fn displays_publish_independently_within_one_frozen_capture() {
+        let store = ProtocolStore::new();
+        let capture_id = uuid::Uuid::new_v4();
+        let first = reserve_frozen_capture(&store, capture_id);
+        let second = reserve_frozen_capture(&store, capture_id);
+        let first_path = format!("frozen/{first}.png");
+        let second_path = format!("frozen/{second}.png");
+
+        assert!(frozen_png_for_path(&store, &first_path).is_none());
+        assert!(frozen_png_for_path(&store, &second_path).is_none());
+        assert!(publish_frozen_png(
+            &store,
+            capture_id,
+            &second,
+            vec![7, 8, 9].into()
+        ));
+        assert!(frozen_png_for_path(&store, &first_path).is_none());
+        assert_eq!(
+            frozen_png_for_path(&store, &second_path),
+            Some(vec![7, 8, 9])
+        );
+        assert!(publish_frozen_png(
+            &store,
+            capture_id,
+            &first,
+            vec![1, 2, 3].into()
+        ));
+        assert_eq!(
+            frozen_png_for_path(&store, &first_path),
+            Some(vec![1, 2, 3])
         );
     }
 

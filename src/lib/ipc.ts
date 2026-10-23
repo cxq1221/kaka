@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { AnnotationDocumentV1, AppearanceSettings } from "../annotation/model";
 import type { CropPixels } from "../annotation/crop.js";
 import { kiriResourceUrl, videoResourceUrl } from "./kiri-resource-url.js";
@@ -124,6 +125,23 @@ export interface LanChatShareResultDto {
   messageId: number;
   fileName: string;
   fileSize: number;
+}
+
+export interface CompletionPreviewDto {
+  id: string;
+  phase: "processing" | "ready" | "failed";
+  assetId: string | null;
+  kind: "image" | "video" | "gif";
+  title: string;
+  detail: string;
+  gifEligible: boolean;
+  copied: boolean;
+  sharedRoomName: string | null;
+}
+
+export interface CompletionPreviewSnapshotDto {
+  revision: number;
+  preview: CompletionPreviewDto;
 }
 
 export interface PendingRecordingDto {
@@ -397,6 +415,8 @@ export const api = {
     invoke<string>("export_video_copy", { id, segments, effects: effects.map(({id: _id, ...effect}) => effect), annotations, preset,requestId }),
   cancelVideoExport: (requestId:string) => invoke<boolean>("cancel_video_export",{requestId}),
   getGifConversionStates: () => invoke<GifConversionStateDto[]>("get_gif_conversion_states"),
+  getCompletionPreview: () =>
+    invoke<CompletionPreviewSnapshotDto | null>("get_completion_preview"),
   cancelGifConversion: (id: string) => invoke<boolean>("cancel_gif_conversion", { id }),
   convertToGif: (id: string) => invoke<void>("convert_to_gif", { id }),
 
@@ -420,7 +440,7 @@ export const api = {
       selection: { x: number; y: number; width: number; height: number };
       document: AnnotationDocumentV1;
     },
-    pinOnTop = false,
+    options: { pinOnTop?: boolean; shareToLanChat?: boolean } = {},
   ) => {
     const token = await invoke<string>("prepare_capture_annotation", {
       request: {
@@ -431,7 +451,8 @@ export const api = {
     return invoke<void>("confirm_capture", png, {
       headers: {
         "x-kiri-annotation-token": token,
-        "x-kiri-pin-on-top": String(pinOnTop),
+        "x-kiri-pin-on-top": String(options.pinOnTop ?? false),
+        "x-kiri-share-to-lanchat": String(options.shareToLanChat ?? false),
       },
     });
   },
@@ -593,26 +614,37 @@ export function onEditorRecognizeQr(handler: () => void): Promise<UnlistenFn> {
 }
 
 export function onCaptureStarted(handler: (context: CaptureContextDto) => void): Promise<UnlistenFn> {
-  return listen<CaptureContextDto>("capture-started", event => handler(event.payload));
+  return getCurrentWebviewWindow().listen<CaptureContextDto>(
+    "capture-started",
+    event => handler(event.payload),
+  );
 }
 
 export function onCaptureImageReady(handler: (captureId: string) => void): Promise<UnlistenFn> {
-  return listen<{ captureId: string }>("capture-image-ready", event => handler(event.payload.captureId));
+  return getCurrentWebviewWindow().listen<{ captureId: string }>(
+    "capture-image-ready",
+    event => handler(event.payload.captureId),
+  );
 }
 
 export function onCaptureEscapeRequested(handler: (captureId: string) => void): Promise<UnlistenFn> {
-  return listen<{ captureId: string }>("capture-escape-requested", event => handler(event.payload.captureId));
+  return getCurrentWebviewWindow().listen<{ captureId: string }>(
+    "capture-escape-requested",
+    event => handler(event.payload.captureId),
+  );
 }
 
 export function onCaptureWindowRects(
   handler: (captureId: string, windowRects: RectDto[]) => void,
 ): Promise<UnlistenFn> {
-  return listen<{ captureId: string; windowRects: RectDto[] }>("capture-window-rects", event =>
-    handler(event.payload.captureId, event.payload.windowRects));
+  return getCurrentWebviewWindow().listen<{ captureId: string; windowRects: RectDto[] }>(
+    "capture-window-rects",
+    event => handler(event.payload.captureId, event.payload.windowRects),
+  );
 }
 
 export function onCaptureEnded(handler: () => void): Promise<UnlistenFn> {
-  return listen("capture-ended", handler);
+  return getCurrentWebviewWindow().listen("capture-ended", handler);
 }
 
 export function onRecordingState(

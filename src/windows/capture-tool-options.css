@@ -21,6 +21,18 @@
   cursor: pointer;
 }
 .kiri-capture-toolbar-move { flex-basis: 18px; width: 18px; height: 32px; }
+.kiri-capture-toolbar .kiri-capture-toolbar-move {
+  flex-basis: 14px;
+  width: 14px;
+  height: 30px;
+  color: #8a8a8a;
+  opacity: .68;
+}
+.kiri-capture-toolbar .kiri-capture-toolbar-move:hover:not(:disabled) {
+  color: #303030;
+  background: #f0f0f0;
+  opacity: 1;
+}
 .kiri-capture-toolbar-move,
 .kiri-capture-options-move { cursor: grab; touch-action: none; user-select: none; }
 .kiri-capture-toolbar-move[data-dragging],

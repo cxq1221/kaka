@@ -109,6 +109,7 @@ async function overlay(t, { windowRects = [floating, normal, background], scale 
     render();
   };
   return { region, hoverRect, scrollStarts,
+    cursor: () => render().props.style.cursor,
     toolbar: () => nodes(render()).find(node => node?.type?.name === "Toolbar"),
     annotationContent(hasContent, canUndo = hasContent) {
       nodes(render()).find(node => node?.type === "annotation-canvas").props.onHistoryChange(canUndo, false, hasContent);
@@ -153,6 +154,35 @@ test("overlapping windows follow native front-to-back order rather than area", a
     h.click(400, 350);
     assert.deepEqual(h.region(), windowRects[0]);
   }
+});
+
+test("committed selection exposes move and resize cursors across the full edge bands", async t => {
+  const h = await overlay(t);
+  h.click(250, 200);
+  assert.deepEqual(h.region(), normal);
+  for (const [point, cursor] of [
+    [[194, 440], "ew-resize"],
+    [[1006, 440], "ew-resize"],
+    [[600, 94], "ns-resize"],
+    [[600, 786], "ns-resize"],
+    [[194, 94], "nwse-resize"],
+    [[1006, 94], "nesw-resize"],
+    [[194, 786], "nesw-resize"],
+    [[1006, 786], "nwse-resize"],
+    [[600, 440], "move"],
+    [[1100, 900], "crosshair"],
+  ]) {
+    h.hover(...point);
+    assert.equal(h.cursor(), cursor, `cursor at ${point.join(",")}`);
+  }
+});
+
+test("dragging from an edge band resizes the selection before it can move", async t => {
+  const h = await overlay(t);
+  h.click(250, 200);
+  h.drag([194, 440], [170, 440], [150, 440]);
+  assert.deepEqual(h.region(), { x: 150, y: 100, width: 850, height: 680 });
+  assert.equal(h.cursor(), "ew-resize", "the completed edge gesture retains its resize affordance");
 });
 
 test("dragging across a hovered window commits the manual release endpoint in either direction", async t => {

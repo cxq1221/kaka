@@ -13,8 +13,9 @@ explicit.
 
 ## Decision
 
-- Sharing is an explicit action on an existing local image. Kaka never uploads
-  immediately after capture, in the background, or as a fallback.
+- Sharing is an explicit action from the screenshot toolbar or from a saved
+  image's completion card. Kaka never uploads immediately after capture, in the
+  background, or as a fallback.
 - The React renderer requests a share through Tauri IPC. Rust owns address
   validation, room discovery, HTTP, the persistent LanChat identity, and
   reading the managed library file. No local filesystem path or HTTP capability
@@ -31,10 +32,13 @@ explicit.
   with `Content-Type: application/octet-stream` and a UTF-8 percent-encoded
   `X-File-Name`. The generated display name uses `kaka-` plus the capture
   timestamp and a short asset id.
-- The completion card exposes sharing only after clipboard and library
-  persistence succeed. Unlike passive feedback, this interactive card remains
-  visible in screen sharing and remote-desktop capture so the action can be
-  discovered; capture startup still hides it before freezing the next frame.
+- The pre-completion Share action first completes the normal local save and
+  clipboard path, then starts the network request after the overlay is
+  dismissed. It never uploads when local persistence fails. The completion card
+  exposes sharing only after clipboard and library persistence succeed. Unlike
+  passive feedback, this interactive card remains visible in screen sharing and
+  remote-desktop capture so the action can be discovered; capture startup still
+  hides it before freezing the next frame.
 - The `lan_identity` value returned by LanChat is stored in Kaka's application
   configuration directory and reused only for the same room UUID. It is a
   random room identity, not an account or secret; the request itself remains

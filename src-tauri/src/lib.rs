@@ -296,6 +296,7 @@ pub fn run() {
             commands::convert_to_gif,
             commands::cancel_gif_conversion,
             commands::get_gif_conversion_states,
+            commands::get_completion_preview,
             commands::export_video_copy,
             commands::cancel_video_export,
             video_project_commands::load_video_project,
@@ -867,19 +868,20 @@ fn schedule_capture_mode(app: &tauri::AppHandle, source: &'static str, mode: sta
 
     #[cfg(target_os = "macos")]
     {
-        let trigger = handle.clone();
-        if let Err(error) = trigger.run_on_main_thread(move || {
+        // The global-shortcut handler runs on the AppKit thread while the
+        // plugin holds its manager lock. Capture startup registers a temporary
+        // Escape shortcut, so running it inline would try to lock that same
+        // manager again and freeze the app before the overlay is published.
+        // Enqueue the next main-queue turn instead of using run_on_main_thread,
+        // which executes inline when already on the main thread.
+        dispatch2::DispatchQueue::main().exec_async(move || {
             // Keep the owned permit for the entire queued invocation. Drop
             // reopens scheduling on every exit path.
             let _permit = permit;
             if let Err(error) = commands::start_capture_with_mode(handle, mode) {
                 log::warn!("[{source}] capture start returned: {error}");
             }
-        }) {
-            // If scheduling fails, Tauri drops the closure and its permit
-            // before returning, so a future request remains eligible.
-            log::warn!("[{source}] could not schedule capture start: {error}");
-        }
+        });
     }
 }
 

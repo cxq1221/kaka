@@ -5,6 +5,7 @@
   "windows": [
     "library",
     "overlay",
+    "overlay-*",
     "editor-*",
     "countdown",
     "control-panel",

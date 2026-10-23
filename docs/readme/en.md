@@ -23,7 +23,7 @@
 - Record MP4 with optional system audio and microphone, or save a silent GIF.
 - Trim and reorder clips from one video, then export a new MP4.
 - Search, tag, favorite and export local captures, with Trash for accidental deletions.
-- Explicitly send a finished screenshot to a local or trusted-LAN LanChat room; it appears in chat history and is never uploaded automatically.
+- Explicitly share a screenshot from the capture toolbar or completion card to a local or trusted-LAN LanChat room; it appears in chat history and is never uploaded automatically.
 - Set, disable or restore global shortcuts directly in Settings; recording controls are active only while recording ([Wayland uses desktop settings](../linux.md)).
 
 ## Get started

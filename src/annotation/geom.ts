@@ -13,7 +13,7 @@ export interface Point {
   y: number;
 }
 
-type SelectionHandle =
+export type SelectionHandle =
   | "topLeft"
   | "top"
   | "topRight"
@@ -133,6 +133,40 @@ export function hitTestHandle(
       return Math.hypot(p.x - center.x, p.y - center.y) <= radius;
     }) ?? null
   );
+}
+
+/**
+ * Cursor affordance for a committed selection. Corner handles keep priority,
+ * then the whole edge acts as a resize target so the pointer does not need to
+ * land on the small visible ring.
+ */
+export function hitTestResizeHandle(
+  p: Point,
+  selection: Rect,
+  handleRadius: number,
+  edgeBand: number,
+): SelectionHandle | null {
+  if (!isValidSelection(selection) || handleRadius < 0 || edgeBand < 0) return null;
+  const handle = hitTestHandle(p, selection, handleRadius);
+  if (handle) return handle;
+
+  const r = standardized(selection);
+  const nearLeft = Math.abs(p.x - minX(r)) <= edgeBand;
+  const nearRight = Math.abs(p.x - maxX(r)) <= edgeBand;
+  const nearTop = Math.abs(p.y - minY(r)) <= edgeBand;
+  const nearBottom = Math.abs(p.y - maxY(r)) <= edgeBand;
+  const withinX = p.x >= minX(r) - edgeBand && p.x <= maxX(r) + edgeBand;
+  const withinY = p.y >= minY(r) - edgeBand && p.y <= maxY(r) + edgeBand;
+
+  if (nearLeft && nearTop) return "topLeft";
+  if (nearRight && nearTop) return "topRight";
+  if (nearLeft && nearBottom) return "bottomLeft";
+  if (nearRight && nearBottom) return "bottomRight";
+  if (nearLeft && withinY) return "left";
+  if (nearRight && withinY) return "right";
+  if (nearTop && withinX) return "top";
+  if (nearBottom && withinX) return "bottom";
+  return null;
 }
 
 export function resized(

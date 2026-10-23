@@ -23,7 +23,7 @@
 - MP4 mit optionalem Systemton und Mikrofon aufnehmen oder als GIF ohne Ton speichern.
 - Clips eines Videos kürzen und umordnen, dann eine neue MP4-Datei exportieren.
 - Lokale Aufnahmen suchen, mit Tags versehen, favorisieren und exportieren; versehentlich Gelöschtes aus dem Papierkorb wiederherstellen.
-- Einen fertigen Screenshot ausdrücklich an einen lokalen oder vertrauenswürdigen LanChat-Raum im LAN senden; er erscheint im Chatverlauf und wird nie automatisch hochgeladen.
+- Einen Screenshot aus der Aufnahme-Symbolleiste oder der Abschlusskarte ausdrücklich an einen lokalen oder vertrauenswürdigen LanChat-Raum im LAN senden; er erscheint im Chatverlauf und wird nie automatisch hochgeladen.
 - Globale Tastenkürzel direkt in den Einstellungen festlegen, deaktivieren oder zurücksetzen; Aufnahmesteuerungen gelten nur während einer Aufnahme ([Wayland nutzt Desktop-Einstellungen](../linux.md)).
 
 ## Erste Schritte

@@ -579,6 +579,25 @@ test("numbered note export uses transparent labels at Retina scale and contrasts
   assert.equal(calls.filter(call => call[0] === "text").length, 1, "inline editing leaves badge digits but never duplicates the textarea text");
 });
 
+test("selected area annotations show handles without a dashed bounding frame", async () => {
+  const {renderAll} = await loadAnnotationRender();
+  const dashes = [], arcs = [];
+  const ctx = {
+    canvas: {width: 640, height: 360},
+    save() {}, restore() {}, scale() {}, clearRect() {}, fillRect() {}, drawImage() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, quadraticCurveTo() {}, arcTo() {}, closePath() {},
+    stroke() {}, fill() {}, setLineDash(values) { dashes.push(values); },
+    arc(...values) { arcs.push(values); },
+  };
+  renderAll({
+    ctx, sourceImage: {}, sourceWidth: 1280, sourceHeight: 720,
+    sourceOffset: {x: 0, y: 0}, regionSize: {width: 640, height: 360},
+    scaleX: 2, scaleY: 2, viewScaleX: 1, viewScaleY: 1, exporting: false,
+  }, [ALL_MARKS[1]], {selectedIndex: 0});
+  assert.deepEqual(dashes, [], "selection chrome never adds a dashed frame");
+  assert.equal(arcs.length, 16, "the eight ring handles still use two arcs each");
+});
+
 test("empty callout drags preview their label position without exporting an empty box", async () => {
   const {drawMark} = await loadAnnotationRender();
   let leaders = 0;

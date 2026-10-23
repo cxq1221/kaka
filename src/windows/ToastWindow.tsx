@@ -13,8 +13,15 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { KiriIcon } from "../components/KiriIcons";
-import { t } from "../i18n";
-import { api, mediaUrl, onGifConversionState, type GifConversionStateDto } from "../lib/ipc";
+import { fmt, t } from "../i18n";
+import {
+  api,
+  mediaUrl,
+  onGifConversionState,
+  type CompletionPreviewDto,
+  type CompletionPreviewSnapshotDto,
+  type GifConversionStateDto,
+} from "../lib/ipc";
 import { kiriResourceUrl } from "../lib/kiri-resource-url.js";
 
 import { gifConversionLabel } from "./gif-conversion";
@@ -25,25 +32,16 @@ interface NoticePayload {
   symbol: string;
 }
 
-interface CompletionPreviewPayload {
-  id: string;
-  phase: "processing" | "ready" | "failed";
-  assetId: string | null;
-  kind: "image" | "video" | "gif";
-  title: string;
-  detail: string;
-  gifEligible: boolean;
-  copied: boolean;
-}
-
 interface UndoState {
-  completion: CompletionPreviewPayload;
+  completion: CompletionPreviewDto;
 }
 
 type ActionName = "open" | "copy" | "share" | "pin" | "gif" | "cancel-gif" | "trash" | "undo";
 
-const COMPLETION_WIDTH = 420;
-const COMPLETION_HEIGHT = 160;
+const COMPLETION_WIDTH = 472;
+const COMPLETION_HEIGHT = 184;
+const COMPLETION_FAILURE_HEIGHT = 236;
+const COMPLETION_STARTUP_FAILURE_HEIGHT = 156;
 const UNDO_HEIGHT = 60;
 const ACTION_COOLDOWN_MS = 450;
 const PASSIVE_DISMISS_MS = 1200;
@@ -55,7 +53,7 @@ function booleanParam(params: URLSearchParams, key: string): boolean {
   return value === "1" || value === "true";
 }
 
-function initialCompletionFromUrl(): CompletionPreviewPayload | null {
+function initialCompletionFromUrl(): CompletionPreviewDto | null {
   const params = new URLSearchParams(window.location.search);
   if (params.get("mode") !== "completion") return null;
 
@@ -73,6 +71,7 @@ function initialCompletionFromUrl(): CompletionPreviewPayload | null {
     detail: params.get("detail") ?? "",
     gifEligible: booleanParam(params, "gifEligible"),
     copied: booleanParam(params, "copied"),
+    sharedRoomName: params.get("sharedRoomName") || null,
   };
 }
 
@@ -82,7 +81,7 @@ function actionErrorMessage(error: unknown): string {
   return "The action could not be completed.";
 }
 
-function previewLabel(kind: CompletionPreviewPayload["kind"]): string {
+function previewLabel(kind: CompletionPreviewDto["kind"]): string {
   if (kind === "video") return t("Open recording preview");
   if (kind === "gif") return t("Open GIF preview");
   return t("Edit screenshot");
@@ -96,6 +95,7 @@ function ActionButton(props: {
   pending: ActionName | null;
   accent?: boolean;
   destructive?: boolean;
+  compact?: boolean;
   onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
 }) {
   const disabled = props.pending !== null;
@@ -105,7 +105,7 @@ function ActionButton(props: {
       type="button"
       className={`kiri-completion-action${props.accent ? " is-accent" : ""}${
         props.destructive ? " is-destructive" : ""
-      }`}
+      }${props.compact ? " is-compact" : ""}`}
       disabled={disabled}
       title={props.title ?? props.label}
       aria-label={props.title ?? props.label}
@@ -120,7 +120,7 @@ function ActionButton(props: {
       ) : (
         <KiriIcon name={props.icon} size={13} />
       )}
-      <span>{props.label}</span>
+      {!props.compact && <span>{props.label}</span>}
     </button>
   );
 }
@@ -128,24 +128,31 @@ function ActionButton(props: {
 export function ToastWindow(props: { title?: string; symbol?: string }) {
   const failureCard = useRef<HTMLElement | null>(null);
   const initialCompletion = useRef(initialCompletionFromUrl()).current;
+  const initialRevision = useRef(
+    Number(new URLSearchParams(window.location.search).get("revision")) || 0,
+  ).current;
+  const revisionRef = useRef(initialRevision);
   const [notice, setNotice] = useState<NoticePayload | null>(
     initialCompletion || !props.title
       ? null
       : { id: "initial", title: props.title, symbol: props.symbol ?? "" },
   );
-  const [completion, setCompletion] = useState<CompletionPreviewPayload | null>(
+  const [completion, setCompletion] = useState<CompletionPreviewDto | null>(
     initialCompletion,
   );
   const [undo, setUndo] = useState<UndoState | null>(null);
   const [pendingAction, setPendingAction] = useState<ActionName | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [copiedNow, setCopiedNow] = useState(false);
-  const [sharedNow, setSharedNow] = useState(false);
+  const [sharedNow, setSharedNow] = useState(!!initialCompletion?.sharedRoomName);
+  const [sharedRoomName, setSharedRoomName] = useState<string | null>(
+    initialCompletion?.sharedRoomName ?? null,
+  );
   const [gifProgress, setGifProgress] = useState<GifConversionStateDto | null>(null);
 
   const completionRef = useRef(completion);
   const undoRef = useRef<UndoState | null>(null);
-  const queuedCompletionRef = useRef<CompletionPreviewPayload | null>(null);
+  const queuedCompletionRef = useRef<CompletionPreviewDto | null>(null);
   const actionLockedRef = useRef(false);
   const actionCooldownUntilRef = useRef(0);
   const actionGenerationRef = useRef(0);
@@ -160,6 +167,7 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
     setActionError(null);
     setCopiedNow(false);
     setSharedNow(false);
+    setSharedRoomName(null);
   }, []);
 
   const hideWindow = useCallback(() => {
@@ -175,7 +183,9 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
   }, [resetActionState]);
 
   const presentCompletion = useCallback(
-    (payload: CompletionPreviewPayload) => {
+    (payload: CompletionPreviewDto, revision: number) => {
+      if (revision < revisionRef.current) return;
+      revisionRef.current = revision;
       if (undoRef.current) {
         // Preserve the recoverable Undo card. Only the newest subsequent
         // completion matters; it is presented when Undo finishes or expires.
@@ -192,6 +202,8 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
       completionRef.current = payload;
       setGifProgress(null);
       resetActionState();
+      setSharedNow(!!payload.sharedRoomName);
+      setSharedRoomName(payload.sharedRoomName ?? null);
     },
     [resetActionState],
   );
@@ -228,6 +240,8 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
     setCompletion(queued);
     completionRef.current = queued;
     resetActionState();
+    setSharedNow(!!queued.sharedRoomName);
+    setSharedRoomName(queued.sharedRoomName ?? null);
     void getCurrentWindow()
       .setSize(new LogicalSize(COMPLETION_WIDTH, COMPLETION_HEIGHT))
       .catch(() => {});
@@ -246,21 +260,28 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
     let unlisteners: UnlistenFn[] = [];
     void Promise.all([
       listen<NoticePayload>("toast", (event) => presentNotice(event.payload)),
-      listen<CompletionPreviewPayload>("completion-preview", (event) =>
-        presentCompletion(event.payload),
+      listen<CompletionPreviewSnapshotDto>("completion-preview", (event) =>
+        presentCompletion(event.payload.preview, event.payload.revision),
       ),
       listen("toast-dismiss", hideWindow),
     ])
       .then((resolved) => {
         if (disposed) resolved.forEach((unlisten) => unlisten());
-        else unlisteners = resolved;
+        else {
+          unlisteners = resolved;
+          if (!initialCompletion) return;
+          void api.getCompletionPreview().then((snapshot) => {
+            if (disposed || !snapshot || snapshot.revision <= revisionRef.current) return;
+            presentCompletion(snapshot.preview, snapshot.revision);
+          }).catch(() => {});
+        }
       })
       .catch(() => {});
     return () => {
       disposed = true;
       unlisteners.forEach((unlisten) => unlisten());
     };
-  }, [hideWindow, presentCompletion, presentNotice]);
+  }, [hideWindow, initialCompletion, presentCompletion, presentNotice]);
 
   useEffect(() => {
     if (completion?.phase !== "processing" || !completion.assetId) return;
@@ -297,7 +318,11 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
   useEffect(() => {
     if (!completion || (completion.phase === "failed" && !completion.assetId)) return;
     void getCurrentWindow().setSize(new LogicalSize(COMPLETION_WIDTH,
-      completion.phase === "failed" ? 224 : COMPLETION_HEIGHT)).catch(() => {});
+      completion.phase === "failed"
+        ? completion.assetId
+          ? COMPLETION_FAILURE_HEIGHT
+          : COMPLETION_STARTUP_FAILURE_HEIGHT
+        : COMPLETION_HEIGHT)).catch(() => {});
   }, [completion?.id, completion?.phase, completion?.assetId]);
 
   useEffect(() => {
@@ -305,7 +330,10 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
     const card = failureCard.current;
     let lastHeight = 0;
     const resize = () => {
-      const height = Math.min(224, Math.max(112, Math.ceil(card.getBoundingClientRect().height) + 12));
+      const height = Math.min(
+        COMPLETION_FAILURE_HEIGHT,
+        Math.max(112, Math.ceil(card.getBoundingClientRect().height) + 16),
+      );
       if (height === lastHeight) return;
       lastHeight = height;
       void getCurrentWindow().setSize(new LogicalSize(COMPLETION_WIDTH, height)).catch(() => {});
@@ -317,7 +345,7 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
   }, [completion?.id, completion?.phase, completion?.assetId]);
 
   // Ordinary notices stay just long enough to register without lingering. Ready cards
-  // remain for eight seconds; the compact Undo state gets only three seconds.
+  // remain for twelve seconds; the compact Undo state gets only three seconds.
   // Only an in-flight action pauses dismissal, so focus cannot leave a card
   // stuck forever.
   useEffect(() => {
@@ -399,6 +427,7 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
   const assetId = visibleCompletion.assetId;
   const isProcessing = !undo && visibleCompletion.phase === "processing";
   const isFailed = !undo && visibleCompletion.phase === "failed";
+  const canRetryShare = isFailed && visibleCompletion.kind === "image" && !!assetId;
   const title = undo ? t("Moved to Trash") : t(visibleCompletion.title);
   const detail = actionError
     ? t(actionError)
@@ -435,9 +464,28 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
 
   const shareScreenshot = () => {
     if (!assetId || visibleCompletion.kind !== "image") return;
+    let roomName: string | null = null;
     void runAction("share", async () => {
-      await api.shareAssetToLanChat(assetId);
+      const result = await api.shareAssetToLanChat(assetId);
+      roomName = result.roomName;
+    }, () => {
       setSharedNow(true);
+      setSharedRoomName(roomName);
+      const current = completionRef.current;
+      if (!current || current.id !== visibleCompletion.id) return;
+      const sharedCompletion: CompletionPreviewDto = {
+        ...current,
+        phase: "ready",
+        title: current.copied ? "Shared and Saved" : "Shared — Copy Failed",
+        detail: current.phase === "failed"
+          ? roomName
+            ? fmt("Shared to %@", roomName)
+            : t("Shared to LanChat")
+          : current.detail,
+        sharedRoomName: roomName,
+      };
+      completionRef.current = sharedCompletion;
+      setCompletion(sharedCompletion);
     });
   };
 
@@ -495,52 +543,78 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
         </section>
       ) : (
         <section ref={failureCard} className={`kiri-completion-card${isFailed ? " is-failed" : ""}${isFailed && !assetId ? " is-startup-failure" : ""}`} aria-label={title}>
-          {isFailed && !assetId ? <div className="kiri-startup-failure-icon" aria-hidden="true"><KiriIcon name="exclamationmark.triangle" size={22} /></div> : <button
-            type="button"
-            className="kiri-completion-preview"
-            disabled={!assetId || isProcessing || pendingAction !== null}
-            aria-label={previewLabel(visibleCompletion.kind)}
-            title={previewLabel(visibleCompletion.kind)}
-            onClick={openPreview}
-          >
-            {assetId && !isProcessing ? (
-              <>
-                {visibleCompletion.kind === "video" ? (
-                  <video
-                    src={mediaUrl(assetId, true)}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    onLoadedMetadata={(event) => {
-                      event.currentTarget.currentTime = 0.001;
-                    }}
-                  />
-                ) : (
-                  <img
-                    src={kiriResourceUrl("thumbnail", [assetId])}
-                    alt=""
-                    draggable={false}
-                  />
-                )}
-                {(visibleCompletion.kind === "video" || visibleCompletion.kind === "gif") && (
-                  <span className="kiri-completion-play" aria-hidden="true">
-                    <KiriIcon name="play.fill" size={12} />
+          {isFailed && !assetId ? (
+            <div className="kiri-startup-failure-icon" aria-hidden="true">
+              <KiriIcon name="exclamationmark.triangle" size={24} />
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="kiri-completion-preview"
+              disabled={!assetId || isProcessing || pendingAction !== null}
+              aria-label={previewLabel(visibleCompletion.kind)}
+              title={previewLabel(visibleCompletion.kind)}
+              onClick={openPreview}
+            >
+              {assetId && !isProcessing ? (
+                <>
+                  {visibleCompletion.kind === "video" ? (
+                    <video
+                      src={mediaUrl(assetId, true)}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      onLoadedMetadata={(event) => {
+                        event.currentTarget.currentTime = 0.001;
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={kiriResourceUrl("thumbnail", [assetId])}
+                      alt=""
+                      draggable={false}
+                    />
+                  )}
+                  {(visibleCompletion.kind === "video" || visibleCompletion.kind === "gif") && (
+                    <span className="kiri-completion-play" aria-hidden="true">
+                      <KiriIcon name="play.fill" size={13} />
+                    </span>
+                  )}
+                  <span className="kiri-completion-edit" aria-hidden="true">
+                    <KiriIcon name="pencil.tip" size={11} />
                   </span>
-                )}
-              </>
-            ) : (
-              <span className="kiri-completion-processing" aria-hidden="true">
-                <span className="kiri-completion-spinner" />
-              </span>
-            )}
-          </button>}
+                </>
+              ) : (
+                <span className="kiri-completion-processing" aria-hidden="true">
+                  <span className="kiri-completion-spinner" />
+                </span>
+              )}
+            </button>
+          )}
 
           <div className="kiri-completion-content">
-            <div className="kiri-completion-copy" role={isFailed ? "alert" : "status"} aria-live={isFailed ? "assertive" : "polite"}>
-              <strong>{title}</strong>
-              <span className={actionError || isFailed ? "is-error" : ""} title={detail}>
-                {detail}
-              </span>
+            <div className="kiri-completion-heading">
+              {!(isFailed && !assetId) && (
+                <span
+                  className={`kiri-completion-status${isFailed ? " is-error" : isProcessing ? " is-processing" : ""}`}
+                  aria-hidden="true"
+                >
+                  {isProcessing ? (
+                    <span className="kiri-completion-status-spinner" />
+                  ) : (
+                    <KiriIcon
+                      name={isFailed ? "exclamationmark.triangle.fill" : "checkmark"}
+                      size={13}
+                    />
+                  )}
+                </span>
+              )}
+              <div className="kiri-completion-copy" role={isFailed ? "alert" : "status"} aria-live={isFailed ? "assertive" : "polite"}>
+                <strong>{title}</strong>
+                <span className={actionError || isFailed ? "is-error" : ""} title={detail}>
+                  {detail}
+                </span>
+              </div>
             </div>
 
             {isProcessing && gifProgress?.progress != null && (
@@ -557,68 +631,99 @@ export function ToastWindow(props: { title?: string; symbol?: string }) {
             )}
             {isFailed && (
               <div className="kiri-completion-actions">
-                {assetId ? <ActionButton action="gif" icon="sparkles.rectangle.stack" label={t("Retry")}
-                  pending={pendingAction} onClick={createGif} /> :
+                {canRetryShare ? <ActionButton action="share" icon="paperplane" label={t("Retry Share")}
+                  pending={pendingAction} accent onClick={shareScreenshot} /> :
+                  assetId ? <ActionButton action="gif" icon="sparkles.rectangle.stack" label={t("Retry")}
+                    pending={pendingAction} onClick={createGif} /> :
                   <ActionButton action="open" icon="folder" label={t("Open Library")}
                     pending={pendingAction} onClick={() => void runAction("open", () => api.openLibrary(), hideWindow)} /> }
                 <button type="button" className="kiri-completion-action" onClick={hideWindow}>{t("Close")}</button>
               </div>
             )}
             {!isProcessing && !isFailed && (
-              <div className="kiri-completion-actions">
-                <ActionButton
-                  action="copy"
-                  icon={copiedNow ? "checkmark.circle.fill" : "doc.on.doc"}
-                  label={
-                    copiedNow
-                      ? t("Copied")
-                      : visibleCompletion.kind === "image"
-                        ? t(visibleCompletion.copied ? "Copy Again" : "Copy")
-                        : t("Copy File")
-                  }
-                  pending={pendingAction}
-                  onClick={copyAsset}
-                />
+              <div className="kiri-completion-action-stack">
                 {visibleCompletion.kind === "image" && (
-                  <>
-                    <ActionButton
-                      action="share"
-                      icon={sharedNow ? "checkmark.circle.fill" : "arrow.up.right"}
-                      label={t(sharedNow ? "Sent to LanChat" : "Send to LanChat")}
-                      title={t(sharedNow ? "Sent to LanChat" : "Send to LanChat")}
-                      pending={pendingAction}
-                      accent
-                      onClick={shareScreenshot}
-                    />
+                  <button
+                    type="button"
+                    className={`kiri-completion-share${sharedNow ? " is-shared" : ""}`}
+                    disabled={pendingAction !== null}
+                    title={sharedNow ? t("Shared to LanChat") : t("Share to LanChat")}
+                    aria-label={sharedNow ? t("Shared to LanChat") : t("Share to LanChat")}
+                    aria-busy={pendingAction === "share"}
+                    onClick={shareScreenshot}
+                  >
+                    {pendingAction === "share" ? (
+                      <span className="kiri-completion-button-spinner" aria-hidden="true" />
+                    ) : (
+                      <KiriIcon
+                        name={sharedNow ? "checkmark.circle.fill" : "paperplane"}
+                        size={15}
+                      />
+                    )}
+                    <span>
+                      {sharedNow
+                        ? sharedRoomName
+                          ? fmt("Shared to %@", sharedRoomName)
+                          : t("Shared to LanChat")
+                        : t("Share to LanChat")}
+                    </span>
+                    {!sharedNow && pendingAction !== "share" && (
+                      <KiriIcon
+                        name="arrow.up.right"
+                        size={13}
+                        style={{ marginLeft: "auto", opacity: 0.64 }}
+                      />
+                    )}
+                  </button>
+                )}
+                <div className="kiri-completion-secondary-actions">
+                  <ActionButton
+                    action="copy"
+                    icon={copiedNow ? "checkmark.circle.fill" : "doc.on.doc"}
+                    label={
+                      copiedNow
+                        ? t("Copied")
+                        : visibleCompletion.kind === "image"
+                          ? t(visibleCompletion.copied ? "Copy Again" : "Copy")
+                          : t("Copy File")
+                    }
+                    pending={pendingAction}
+                    compact
+                    onClick={copyAsset}
+                  />
+                  {visibleCompletion.kind === "image" && (
                     <ActionButton
                       action="pin"
                       icon="photo.on.rectangle"
                       label={t("Pin")}
                       title={t("Pin Screenshot on Top")}
                       pending={pendingAction}
+                      compact
                       onClick={pinScreenshot}
                     />
-                  </>
-                )}
-                {visibleCompletion.kind === "video" && visibleCompletion.gifEligible && (
+                  )}
+                  {visibleCompletion.kind === "video" && visibleCompletion.gifEligible && (
+                    <ActionButton
+                      action="gif"
+                      icon="sparkles.rectangle.stack"
+                      label={t("GIF")}
+                      title={t("Convert to GIF")}
+                      pending={pendingAction}
+                      compact
+                      onClick={createGif}
+                    />
+                  )}
                   <ActionButton
-                    action="gif"
-                    icon="sparkles.rectangle.stack"
-                    label={t("GIF")}
-                    title={t("Convert to GIF")}
+                    action="trash"
+                    icon="trash"
+                    label={t("Trash")}
+                    title={t("Move to Trash")}
                     pending={pendingAction}
-                    onClick={createGif}
+                    destructive
+                    compact
+                    onClick={moveToTrash}
                   />
-                )}
-                <ActionButton
-                  action="trash"
-                  icon="trash"
-                  label={t("Trash")}
-                  title={t("Move to Trash")}
-                  pending={pendingAction}
-                  destructive
-                  onClick={moveToTrash}
-                />
+                </div>
               </div>
             )}
           </div>
@@ -645,15 +750,6 @@ function ToastStyles() {
       }
 
       .kiri-toast-shell { pointer-events: none; }
-      .kiri-completion-card.is-failed { align-items: start; }
-      .kiri-completion-card.is-startup-failure { height: auto; grid-template-columns: 24px minmax(0, 1fr); padding: 12px; }
-      .kiri-startup-failure-icon { color: var(--kiri-coral); padding-top: 1px; }
-      .kiri-completion-card.is-failed .kiri-completion-copy strong { white-space: normal; overflow-wrap: anywhere; max-height: 54px; overflow: auto; }
-      .kiri-completion-card.is-failed .kiri-completion-copy > span { font-size: 14px; }
-      .kiri-completion-card.is-failed .kiri-completion-copy > span {
-        white-space: normal; overflow: auto; max-height: 84px; overflow-wrap: anywhere;
-      }
-      .kiri-completion-content progress { width: 100%; height: 4px; accent-color: var(--kiri-label); }
 
       .kiri-toast-card {
         display: flex;
@@ -673,21 +769,54 @@ function ToastStyles() {
       }
 
       .kiri-completion-shell,
-      .kiri-undo-shell { padding: 6px; }
+      .kiri-undo-shell { padding: 8px; }
 
       .kiri-completion-card {
         width: 100%;
         height: 100%;
         display: grid;
-        grid-template-columns: 94px minmax(0, 1fr);
-        gap: 10px;
+        grid-template-columns: 136px minmax(0, 1fr);
+        gap: 14px;
         box-sizing: border-box;
-        padding: 8px;
+        padding: 10px;
         border: 1px solid var(--kiri-surface-border);
-        border-radius: 16px;
-        background: var(--kiri-elevated);
-        box-shadow: none;
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at 0 0, color-mix(in srgb, var(--kiri-group-fill) 78%, transparent), transparent 44%),
+          var(--kiri-elevated);
+        box-shadow: inset 0 1px 0 color-mix(in srgb, var(--kiri-label) 5%, transparent);
         color: var(--kiri-label);
+      }
+
+      .kiri-completion-card.is-failed { align-items: stretch; }
+
+      .kiri-completion-card.is-failed .kiri-completion-content {
+        justify-content: center;
+        justify-content: safe center;
+      }
+
+      .kiri-completion-card.is-failed .kiri-completion-actions {
+        flex: 0 0 auto;
+        margin-top: 0;
+      }
+
+      .kiri-completion-card.is-startup-failure {
+        height: auto;
+        grid-template-columns: 34px minmax(0, 1fr);
+        align-items: start;
+        gap: 12px;
+        padding: 14px 16px;
+      }
+
+      .kiri-startup-failure-icon {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--kiri-coral) 18%, var(--kiri-surface-border));
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--kiri-coral) 8%, var(--kiri-elevated));
+        color: var(--kiri-coral);
       }
 
       .kiri-undo-card {
@@ -698,11 +827,13 @@ function ToastStyles() {
         justify-content: space-between;
         gap: 12px;
         box-sizing: border-box;
-        padding: 7px 8px 7px 13px;
+        padding: 7px 8px 7px 14px;
         border: 1px solid var(--kiri-surface-border);
-        border-radius: 13px;
-        background: var(--kiri-elevated);
-        box-shadow: none;
+        border-radius: 16px;
+        background:
+          linear-gradient(90deg, color-mix(in srgb, var(--kiri-group-fill) 52%, transparent), transparent 62%),
+          var(--kiri-elevated);
+        box-shadow: inset 0 1px 0 color-mix(in srgb, var(--kiri-label) 5%, transparent);
         color: var(--kiri-label);
       }
 
@@ -725,13 +856,21 @@ function ToastStyles() {
 
       .kiri-completion-preview {
         position: relative;
-        width: 94px;
-        height: 94px;
+        width: 136px;
+        height: 100%;
+        min-height: 0;
         overflow: hidden;
         padding: 0;
         border: 1px solid var(--kiri-surface-border);
-        border-radius: 11px;
-        background: var(--kiri-group-fill);
+        border-radius: 12px;
+        background-color: var(--kiri-group-fill);
+        background-image:
+          linear-gradient(45deg, color-mix(in srgb, var(--kiri-label) 4%, transparent) 25%, transparent 25%),
+          linear-gradient(-45deg, color-mix(in srgb, var(--kiri-label) 4%, transparent) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--kiri-label) 4%, transparent) 75%),
+          linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--kiri-label) 4%, transparent) 75%);
+        background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+        background-size: 14px 14px;
         color: var(--kiri-label);
         cursor: pointer;
         transition:
@@ -760,6 +899,31 @@ function ToastStyles() {
         object-fit: contain;
       }
 
+      .kiri-completion-edit {
+        position: absolute;
+        right: 7px;
+        bottom: 7px;
+        width: 23px;
+        height: 23px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        opacity: 0;
+        transform: translateY(3px);
+        transition:
+          opacity var(--kiri-motion-hover) ease-out,
+          transform var(--kiri-motion-hover) ease-out;
+      }
+
+      .kiri-completion-preview:hover .kiri-completion-edit,
+      .kiri-completion-preview:focus-visible .kiri-completion-edit {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
       .kiri-completion-play {
         position: absolute;
         left: 50%;
@@ -785,6 +949,7 @@ function ToastStyles() {
       }
 
       .kiri-completion-spinner,
+      .kiri-completion-status-spinner,
       .kiri-completion-button-spinner {
         display: inline-block;
         border: 1.5px solid var(--kiri-surface-border);
@@ -793,22 +958,54 @@ function ToastStyles() {
         animation: kiri-completion-spin 0.72s linear infinite;
       }
 
-      .kiri-completion-spinner { width: 20px; height: 20px; }
+      .kiri-completion-spinner { width: 22px; height: 22px; }
+      .kiri-completion-status-spinner { width: 10px; height: 10px; border-color: var(--kiri-accent-alpha-18); border-top-color: var(--kiri-label); }
       .kiri-completion-button-spinner { width: 11px; height: 11px; }
 
       .kiri-completion-content {
         min-width: 0;
+        min-height: 0;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        padding: 2px 0;
+        gap: 9px;
+        padding: 1px 2px 1px 0;
+      }
+
+      .kiri-completion-heading {
+        min-width: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+      }
+
+      .kiri-completion-status {
+        flex: 0 0 24px;
+        width: 24px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        margin-top: 1px;
+        border-radius: 50%;
+        background: var(--kiri-label);
+        color: var(--kiri-on-accent);
+      }
+
+      .kiri-completion-status.is-processing {
+        background: var(--kiri-group-fill);
+        color: var(--kiri-secondary-label);
+      }
+
+      .kiri-completion-status.is-error {
+        background: color-mix(in srgb, var(--kiri-coral) 9%, var(--kiri-elevated));
+        color: var(--kiri-coral);
       }
 
       .kiri-completion-copy {
         min-width: 0;
+        flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        gap: 2px;
       }
 
       .kiri-completion-copy strong,
@@ -820,30 +1017,129 @@ function ToastStyles() {
 
       .kiri-completion-copy strong {
         color: var(--kiri-label);
-        font-size: 13px;
-        font-weight: 650;
-        line-height: 18px;
+        font-size: 14px;
+        font-weight: 680;
+        letter-spacing: -0.012em;
+        line-height: 19px;
       }
 
       .kiri-completion-copy span {
         color: var(--kiri-secondary-label);
         font-size: 11.5px;
-        line-height: 16px;
+        line-height: 17px;
       }
 
       .kiri-completion-copy span.is-error { color: var(--kiri-coral); }
 
+      .kiri-completion-card.is-failed .kiri-completion-copy strong {
+        max-height: 42px;
+        overflow: auto;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
+      .kiri-completion-card.is-failed .kiri-completion-copy > span {
+        max-height: 66px;
+        overflow: auto;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
+      .kiri-completion-content progress {
+        width: 100%;
+        height: 5px;
+        margin: 1px 0 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 999px;
+        background: var(--kiri-group-fill);
+        accent-color: var(--kiri-label);
+      }
+
       .kiri-completion-actions {
         min-width: 0;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 4px;
+        display: flex;
+        gap: 6px;
+        margin-top: auto;
+      }
+
+      .kiri-completion-actions .kiri-completion-action { flex: 1; }
+
+      .kiri-completion-action-stack {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        margin-top: auto;
+      }
+
+      .kiri-completion-share {
+        width: 100%;
+        height: 42px;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 0 14px;
+        box-sizing: border-box;
+        border: 1px solid transparent;
+        border-radius: 11px;
+        background: var(--kiri-brand-solid);
+        color: var(--kiri-on-accent);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.18),
+          0 1px 2px rgba(0, 0, 0, 0.12);
+        font: 650 13px/1 var(--kiri-font-ui);
+        text-align: left;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+          background var(--kiri-motion-hover) ease-out,
+          border-color var(--kiri-motion-hover) ease-out,
+          color var(--kiri-motion-hover) ease-out,
+          transform var(--kiri-motion-hover) ease-out,
+          box-shadow var(--kiri-motion-hover) ease-out;
+      }
+
+      .kiri-completion-share > span:not(.kiri-completion-button-spinner) {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .kiri-completion-share:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.2),
+          0 3px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      .kiri-completion-share:active:not(:disabled) {
+        transform: scale(0.985);
+      }
+
+      .kiri-completion-share.is-shared {
+        border-color: var(--kiri-surface-border);
+        background: color-mix(in srgb, var(--kiri-group-fill) 52%, var(--kiri-elevated));
+        color: var(--kiri-label);
+        box-shadow: none;
+      }
+
+      .kiri-completion-share:disabled {
+        cursor: default;
+        opacity: 0.62;
+      }
+
+      .kiri-completion-secondary-actions {
+        min-width: 0;
+        display: flex;
+        gap: 6px;
       }
 
       .kiri-completion-action {
         height: 32px;
         min-width: 0;
-        width: 100%;
+        width: auto;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -851,8 +1147,8 @@ function ToastStyles() {
         padding: 0 7px;
         border: 1px solid var(--kiri-surface-border);
         border-radius: 9px;
-        background: var(--kiri-group-fill);
-        color: var(--kiri-label);
+        background: color-mix(in srgb, var(--kiri-group-fill) 34%, transparent);
+        color: var(--kiri-secondary-label);
         font: 600 11.5px var(--kiri-font-ui);
         white-space: nowrap;
         cursor: pointer;
@@ -863,10 +1159,24 @@ function ToastStyles() {
           transform var(--kiri-motion-hover) ease-out;
       }
 
+      .kiri-completion-action.is-compact {
+        flex: 0 0 34px;
+        width: 34px;
+        padding: 0;
+      }
+
       .kiri-completion-action.is-accent {
-        border-color: var(--kiri-accent-alpha-18);
-        background: var(--kiri-accent-soft-alpha-10);
-        color: var(--kiri-accent-strong);
+        flex: 0 0 auto;
+        min-width: 84px;
+        border-color: transparent;
+        background: var(--kiri-brand-solid);
+        color: var(--kiri-on-accent);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      }
+
+      .kiri-completion-action.is-destructive {
+        margin-left: auto;
+        color: color-mix(in srgb, var(--kiri-coral) 74%, var(--kiri-secondary-label));
       }
 
       .kiri-completion-action.is-destructive:hover:not(:disabled) {
@@ -874,7 +1184,11 @@ function ToastStyles() {
         color: var(--kiri-coral);
       }
 
-      .kiri-completion-action:hover:not(:disabled) { border-color: var(--kiri-accent-alpha-32); }
+      .kiri-completion-action:hover:not(:disabled) {
+        border-color: var(--kiri-accent-alpha-32);
+        background: color-mix(in srgb, var(--kiri-group-fill) 72%, var(--kiri-elevated));
+        color: var(--kiri-label);
+      }
 
       .kiri-completion-action:active:not(:disabled) { transform: scale(0.96); }
 
@@ -885,7 +1199,8 @@ function ToastStyles() {
       }
 
       .kiri-completion-action:focus-visible,
-      .kiri-completion-preview:focus-visible {
+      .kiri-completion-preview:focus-visible,
+      .kiri-completion-share:focus-visible {
         outline: 2px solid var(--kiri-accent);
         outline-offset: 2px;
       }
@@ -894,6 +1209,7 @@ function ToastStyles() {
 
       @media (prefers-reduced-motion: reduce) {
         .kiri-completion-spinner,
+        .kiri-completion-status-spinner,
         .kiri-completion-button-spinner { animation-duration: 1.4s; }
       }
     `}</style>

@@ -102,7 +102,7 @@ These recording commands only act on an ongoing recording, but the desktop may
 keep their keys reserved while Kaka is idle; Kaka cannot release desktop-owned
 bindings between recordings.
 
-Before choosing an annotation tool, click the screenshot toolbar's sliders button to show editable width and height labels on the selection edges. Values use output pixels, including on Retina displays. Enter or leaving a field applies its value; Esc discards the current input, and a second Esc cancels capture. Arrow keys adjust by one pixel, or ten with Shift. Click the sliders again to hide the labels. Once annotation starts, the sliders retain their appearance controls.
+After selecting a region, the compact toolbar appears below it and aligns to its right edge when space allows. Hover just inside or outside any edge or corner to see a resize cursor; drag there to resize, or drag inside the selection to move it. Before choosing an annotation tool, open **More Actions** → **Resize selection** to show editable width and height labels on the selection edges. Values use output pixels, including on Retina displays. Enter or leaving a field applies its value; Esc discards the current input, and a second Esc cancels capture. Arrow keys adjust by one pixel, or ten with Shift. After annotation starts, **More Actions** → **Tool options** opens the appearance controls.
 
 On macOS, if you change display layout, resolution, or scale after selecting a region, start a new capture before recording. If recording is paused, stop and save it first.
 
@@ -140,13 +140,15 @@ Saved images use the same annotation tools: select a tool or existing object to 
 
 Select an existing annotation to change its style. Mosaic offers freehand, rectangle, and ellipse shapes, with pixel or blur effects and adjustable strength. Use Watermark (W) to type directly on the image, then adjust the tiled watermark’s opacity, angle, and spacing. Watermarks remain editable after saving.
 
-In the screenshot overlay, drag the small handle on the annotation toolbar or in the property panel’s heading to move each independently. With a handle focused, arrow keys move it by 2 pixels, or 10 with Shift. Chosen positions stay for the current capture, even when you adjust the selection or change tools; a new capture starts with automatic placement. The property panel makes room if the toolbar moves over it. Hide tool options keeps the panel closed until you reopen it from the main toolbar. Automatic property-panel placement also avoids the selected annotation.
+In the screenshot overlay, drag the small handle on the annotation toolbar or in the property panel’s heading to move each independently. With a handle focused, arrow keys move it by 2 pixels, or 10 with Shift. Chosen positions stay for the current capture, even when you adjust the selection or change tools; a new capture starts with automatic placement. The property panel makes room if the toolbar moves over it. Hide tool options keeps the panel closed until you reopen it from **More Actions** → **Tool options**. Automatic property-panel placement also avoids the selected annotation.
 
 Text (T), Numbered callout (N), and Label bubble (B) each have their own button in the screenshot and image-editor toolbars. Choose Numbered callout, click to place a number, and type its description directly on the image; Return adds a line. Drag the number and transparent description separately, and adjust size, color, and filled or outline style.
 
 Single-click existing text, numbered notes, labels, or watermarks to select them; drag to move and double-click to edit. Press `Delete` or `Backspace` to remove a selected annotation, or click **Delete annotation**. Undo with `⌘Z` / `Ctrl+Z`. While typing, deletion keys only delete text.
 
-While entering text, a numbered description, or a label, the first action on empty canvas finishes editing and clears selection; the next uses the current tool. Text and shape tools also clear an existing selection before placing another mark. The tool stays selected, and Pen and mosaic support continuous strokes. Clicking the canvas ends watermark input; editing again reuses the same watermark.
+A selected area annotation exposes resize cursors along its edges and shows eight small handles, without adding a dashed bounding box to the image.
+
+While entering text, a numbered description, or a label, the first action on empty canvas finishes editing and clears selection; the next uses the current tool. Text, numbered callout, and label tools also clear an existing selection before placing another mark. Rectangle, Line, and Arrow create the next mark on the first drag over empty canvas; a blank click only clears selection. The tool stays selected, and Pen and mosaic support continuous strokes. Clicking the canvas ends watermark input; editing again reuses the same watermark.
 
 Annotations stack in creation order. Mosaic added later processes earlier text, shapes and watermarks; annotations added afterward appear above it. Moving or editing an annotation keeps its layer.
 

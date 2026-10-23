@@ -299,13 +299,14 @@ function captureCompletion() {
 
 test("direct pin exports annotations once and waits for confirmation before closing", async () => {
   const h = captureCompletion();
-  const pending = h.complete(true);
+  const pending = h.complete("pin");
   await h.complete();
   assert.deepEqual(h.calls, ["export"], "Done cannot race a pending pin export");
   h.exported.resolve(h.result);
   await settleRequests();
-  assert.deepEqual(h.calls[1], [h.result.png, { selection: h.selection, document: h.result.document }, true]);
-  await h.complete(true);
+  assert.deepEqual(h.calls[1], [h.result.png, { selection: h.selection, document: h.result.document },
+    { pinOnTop: true, shareToLanChat: false }]);
+  await h.complete("pin");
   assert.equal(h.calls.length, 2, "a second pin cannot race native confirmation");
   assert.equal(h.lock.locked, true);
   h.confirmed.resolve();
@@ -316,7 +317,7 @@ test("direct pin exports annotations once and waits for confirmation before clos
 
 test("failed pin confirmation keeps the overlay open and releases completion for retry", async () => {
   const h = captureCompletion();
-  const pending = h.complete(true);
+  const pending = h.complete("pin");
   h.exported.resolve(h.result);
   await settleRequests();
   h.confirmed.reject(new Error("save failed"));
@@ -332,12 +333,12 @@ test("normal completion retains its non-pinning action", async () => {
   h.exported.resolve(h.result);
   h.confirmed.resolve();
   await pending;
-  assert.equal(h.calls[1][2], false);
+  assert.deepEqual(h.calls[1][2], { pinOnTop: false, shareToLanChat: false });
   assert.equal(h.calls[2], "close");
 });
 
 test("the toolbar exposes direct pin, disables it while completing, and isolates keyboard activation", () => {
-  const toolbar = overlaySource.slice(overlaySource.indexOf("const TOOLS:"));
+  const toolbar = overlaySource.slice(overlaySource.indexOf("type ToolDefinition ="));
   const harness = createLibraryHarness({}, `import React,{useState,useRef,useEffect,useLayoutEffect} from "react";
     import {t} from "../i18n"; import {KiriIcon} from "../components/KiriIcons";
     import {AnnotationToolbarButton} from "../components/AnnotationToolbarButton";
