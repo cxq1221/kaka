@@ -367,10 +367,11 @@ with keyboard adjustments. Manual positions belong to the current capture and
 survive selection, tool, and property changes. The main toolbar stays within the
 screen and avoids the mode selector; properties also avoid the main toolbar and
 make room when it moves over them. Automatic property placement additionally
-avoids the selected or edited mark. The property handle and explicit hide action
-share its existing heading. Hiding persists until the main toolbar reopens the
-panel. These layout states preserve annotation editing and IME composition
-(ADR 0110).
+avoids the selected or edited mark and the active capture bounds. When a
+full-width panel has no clear outside strip, it narrows before covering the
+canvas. The property handle and explicit hide action share its existing
+heading. Hiding persists until the main toolbar reopens the panel. These layout
+states preserve annotation editing and IME composition (ADR 0110).
 
 Text (T), Numbered callout (N), and Label bubble (B) each have a direct button
 in the capture and saved-image toolbars. Their annotation groups wrap at narrow

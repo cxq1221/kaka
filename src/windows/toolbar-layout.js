@@ -126,13 +126,13 @@ export function capturePanelLayout(selection, bounds, size, modeSelector = null,
 
 /** Tool properties adapt around an already positioned main row. Growing or
  * switching properties must never choose a new anchor for that main row. */
-export function captureToolOptionsLayout(toolbar, bounds, size, modeSelector = null, avoidBounds = [], preferredPosition = null) {
+export function captureToolOptionsLayout(toolbar, bounds, size, modeSelector = null, avoidBounds = [], preferredPosition = null, selection = null) {
   const margin = 8, gap = 6;
   const screen = { x: bounds.x + margin, y: bounds.y + margin,
     width: Math.max(0, bounds.width - margin * 2), height: Math.max(0, bounds.height - margin * 2) };
   const width = Math.min(size.width, screen.width);
   const clamp = (value, low, high) => Math.min(Math.max(value, low), Math.max(low, high));
-  const exclude = (spaces, obstacle, clearance) => {
+  const exclude = (spaces, obstacle, clearance, requiredWidth = width) => {
     const left = obstacle.x - clearance, right = obstacle.x + obstacle.width + clearance;
     const top = obstacle.y - clearance, bottom = obstacle.y + obstacle.height + clearance;
     return spaces.flatMap(rect => {
@@ -144,7 +144,7 @@ export function captureToolOptionsLayout(toolbar, bounds, size, modeSelector = n
         { ...rect, height: Math.max(0, Math.min(top, endY) - rect.y) },
         { ...rect, y: Math.max(bottom, rect.y), height: Math.max(0, endY - Math.max(bottom, rect.y)) },
       ];
-    }).filter(rect => rect.width >= width && rect.height > 0);
+    }).filter(rect => rect.width >= requiredWidth && rect.height > 0);
   };
   let free = exclude([screen], toolbar, gap);
   if (modeSelector) free = exclude(free, modeSelector, 10);
@@ -174,8 +174,39 @@ export function captureToolOptionsLayout(toolbar, bounds, size, modeSelector = n
   const choices = preferredPosition ? candidates : complete.length ? complete : candidates;
   choices.sort((a, b) => preferredPosition || complete.length ? a.distance - b.distance : b.maxHeight - a.maxHeight || a.distance - b.distance);
   const best = choices[0];
-  return best ? { left: best.left, top: best.top, width, maxHeight: best.maxHeight }
+  const automatic = best ? { left: best.left, top: best.top, width, maxHeight: best.maxHeight }
     : { left: clamp(centeredLeft, screen.x, screen.x + screen.width - width), top: screen.y, width, maxHeight: 0 };
+  if (preferredPosition || !selection || automatic.left >= selection.x + selection.width + gap ||
+      automatic.left + automatic.width <= selection.x - gap ||
+      automatic.top >= selection.y + selection.height + gap ||
+      automatic.top + Math.min(size.height, automatic.maxHeight) <= selection.y - gap) return automatic;
+
+  // A drawing tool's properties open automatically. If the full-width panel
+  // cannot fit outside the capture, use a narrower clear strip rather than
+  // placing interactive controls over the area being annotated.
+  const minimumWidth = Math.min(width, 260);
+  let clear = exclude([screen], toolbar, gap, minimumWidth);
+  if (modeSelector) clear = exclude(clear, modeSelector, 10, minimumWidth);
+  clear = exclude(clear, selection, gap, minimumWidth).filter(space => space.height >= minimumHeight);
+  if (!clear.length) return automatic;
+  const clearCandidates = clear.map(space => {
+    const candidateWidth = Math.min(width, space.width);
+    const candidateHeight = Math.min(size.height, space.height);
+    const centered = toolbar.x + (toolbar.width - candidateWidth) / 2;
+    const left = clamp(centered, space.x, space.x + space.width - candidateWidth);
+    const top = space.y + space.height <= toolbar.y - gap
+      ? space.y + space.height - candidateHeight
+      : clamp(toolbar.y + toolbar.height + gap, space.y, space.y + space.height - candidateHeight);
+    return {left, top, width: candidateWidth, maxHeight: space.height,
+      distance: Math.hypot(left - centered, top - (toolbar.y + toolbar.height + gap))};
+  });
+  const natural = clearCandidates.filter(candidate => candidate.width >= width && candidate.maxHeight >= size.height);
+  const fullWidth = clearCandidates.filter(candidate => candidate.width >= width);
+  const clearChoices = natural.length ? natural : fullWidth.length ? fullWidth : clearCandidates;
+  clearChoices.sort((a, b) => natural.length || fullWidth.length
+    ? a.distance - b.distance
+    : b.width - a.width || b.maxHeight - a.maxHeight || a.distance - b.distance);
+  return clearChoices[0];
 }
 
 /** Recording setup follows its region: roomy selections contain it; small ones

@@ -2267,9 +2267,9 @@ export function Toolbar(props: ToolbarProps) {
     sizeControlsOpen, props.modeSelectorBounds, toolbarPosition);
   const optionsLayout = captureToolOptionsLayout({x: left, y: top, ...barSize}, bounds,
     {width: Math.min(620, barSize.width), height: optionsHeight}, props.modeSelectorBounds, props.avoidBounds,
-    optionsPosition ?? optionsAdjustmentPosition);
+    optionsPosition ?? optionsAdjustmentPosition, selection);
   const moreLayout = captureToolOptionsLayout({x: left, y: top, ...barSize}, bounds,
-    {width: 216, height: 278}, props.modeSelectorBounds, props.avoidBounds);
+    {width: 216, height: 278}, props.modeSelectorBounds, props.avoidBounds, null, selection);
   const optionsLayoutRef = useRef(optionsLayout);
   optionsLayoutRef.current = optionsLayout;
   const holdOptionsPosition = () => setOptionsAdjustmentPosition(previous => previous ?? {

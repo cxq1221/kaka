@@ -21,6 +21,7 @@ export function captureToolOptionsLayout(
   modeSelector?: Rect | null,
   avoidBounds?: Rect[],
   preferredPosition?: { x: number; y: number } | null,
+  selection?: Rect | null,
 ): { left: number; top: number; width: number; maxHeight: number };
 export function recordingPanelLayout(
   selection: Rect,

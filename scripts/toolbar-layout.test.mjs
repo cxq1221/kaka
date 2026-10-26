@@ -119,7 +119,7 @@ test("full-display and corner selections keep two and three rows clear of a move
   }
 });
 
-test("choosing N and changing property heights keeps the main toolbar anchored below its selection", () => {
+test("choosing N and changing property heights keeps the toolbar anchored and properties outside the capture", () => {
   const source = readFileSync(new URL("../src/windows/OverlayWindow.tsx", import.meta.url), "utf8");
   // Compile the real tool definitions and both toolbar rows, including all
   // three direct text tools; no empty TOOLS shortcut hides wrap groups.
@@ -163,6 +163,7 @@ test("choosing N and changing property heights keeps the main toolbar anchored b
     assert.ok(position.top >= 8 && position.top + size.height <= 792);
     assert.ok(!overlaps(position, size, {x: anchor.left, y: anchor.top, width: 550, height: 48}), "properties cannot cover main actions");
     assert.ok(!overlaps(position, size, props.modeSelectorBounds), "properties cannot cover mode choices");
+    assert.ok(!overlaps(position, size, props.selection), "properties cannot cover the screenshot frame");
   };
   height = 230;
   tree = component.render({ ...props, tool: "callout", canSetSize: false, styleControls: "callout-controls" });
@@ -177,7 +178,7 @@ test("choosing N and changing property heights keeps the main toolbar anchored b
   assert.equal(optionsStyle.width, "100%", "the property HUD remains within the measured toolbar width");
   assert.ok(settings.props.style.maxHeight > 0);
   checkProperties(settings);
-  assert.ok(settings.props.style.top < 0, "only the properties flip above when the lower screen edge leaves no room");
+  assert.ok(settings.props.style.left < 0, "properties use clear space below the capture when the lower screen edge leaves no room");
   height = 130;
   tree = component.render({ ...props, canSetSize: false, selectedMark: {kind: "text", id: 2, labelDirection: "left"}, styleControls: "label-controls" });
   root = nodes(tree).find(node => node?.props?.className === "kiri-capture-toolbar");
@@ -226,6 +227,52 @@ test("properties avoid the fixed toolbar and dragged mode selector at every scre
       }
     }
   }
+});
+
+test("rectangle properties stay outside a bottom-right capture when an outside edge is available", () => {
+  const source = readFileSync(new URL("../src/windows/OverlayWindow.tsx", import.meta.url), "utf8");
+  const toolbar = source.slice(source.indexOf("type ToolDefinition ="));
+  const bounds = {x: 0, y: 0, width: 1512, height: 982};
+  const selection = {x: 1120, y: 700, width: 360, height: 240};
+  const mode = {x: 601, y: 44, width: 310, height: 44};
+  let panelStyle;
+  const measured = {get scrollHeight() { return 96; },
+    get offsetHeight() { return Math.min(96, panelStyle.maxHeight); },
+    get clientHeight() { return Math.min(96, panelStyle.maxHeight); }};
+  const harness = createLibraryHarness({}, `import React,{useState,useRef,useEffect,useLayoutEffect} from "react";
+    import {t} from "../i18n"; import {KiriIcon} from "../components/KiriIcons";
+    import {AnnotationToolbarButton} from "../components/AnnotationToolbarButton";
+    const captureToolbarPosition=${captureToolbarPosition.toString()}, capturePanelLayout=${capturePanelLayout.toString()}, captureToolOptionsLayout=${captureToolOptionsLayout.toString()}; ${toolbar}`, {
+    attachRef(node) {
+      if (node.props.className?.includes("kiri-annotation-tool-row")) {
+        node.props.ref.current = {offsetWidth: 410, offsetHeight: 48};
+      }
+      if (node.props.className === "kiri-hud kiri-capture-tool-options") {
+        panelStyle = node.props.style;
+        node.props.ref.current = measured;
+      }
+    },
+    globals: {ResizeObserver: class { observe() {} disconnect() {} }},
+  });
+  const component = harness.mount("Toolbar", {
+    selection, bounds, modeSelectorBounds: mode, tool: "rectangle", appearance: {},
+    canSetSize: false, disabled: false,
+    renderStyleControls: chrome => ({type: "div", props: {children: chrome}}),
+  });
+  const tree = component.render();
+  const root = nodes(tree).find(node => node?.props?.className === "kiri-capture-toolbar");
+  const panel = nodes(tree).find(node => node?.props?.className === "kiri-hud kiri-capture-tool-options");
+  assert.ok(panel, "choosing Rectangle opens its property panel");
+  const position = {
+    left: root.props.style.left + panel.props.style.left,
+    top: root.props.style.top + panel.props.style.top,
+  };
+  const size = {width: panel.props.style.width, height: Math.min(96, panel.props.style.maxHeight)};
+  assert.ok(!overlaps(position, size, selection),
+    "the property panel must not cover the lower-right capture area");
+  assert.ok(!overlaps(position, size, mode));
+  assert.ok(!overlaps(position, size, {x: root.props.style.left, y: root.props.style.top, width: 410, height: 48}));
+  component.unmount();
 });
 
 test("legacy outside-panel layout keeps its actions clear of the mode selector", () => {
